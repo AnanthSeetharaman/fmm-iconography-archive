@@ -959,7 +959,12 @@ function renderSearchResults(studies) {
         <div class="study-title-group">
           <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
             <span class="study-series-badge">${study.series_name} · ${study.study_number || 'Study'}</span>
-            <span class="badge" style="background:rgba(34, 197, 94, 0.12); color:#15803d; border:1px solid rgba(34, 197, 94, 0.3); font-size:10.5px; font-weight:700;">✓ Public Access (Non-Premium)</span>
+            ${study.access_level === 'premium' ? 
+              `<span class="badge" style="background:rgba(234, 179, 8, 0.12); color:#a16207; border:1px solid rgba(234, 179, 8, 0.3); font-size:10.5px; font-weight:700;">✦ Premium</span>` :
+              study.access_level === 'scholar_tier' ?
+              `<span class="badge" style="background:rgba(59, 130, 246, 0.12); color:#1d4ed8; border:1px solid rgba(59, 130, 246, 0.3); font-size:10.5px; font-weight:700;">🔒 Scholar Tier</span>` :
+              `<span class="badge" style="background:rgba(34, 197, 94, 0.12); color:#15803d; border:1px solid rgba(34, 197, 94, 0.3); font-size:10.5px; font-weight:700;">✓ Public Access</span>`
+            }
           </div>
           <h3>${sanitizeHTML(study.title)}</h3>
           <p class="study-subtitle">${study.subtitle || ''}</p>
@@ -1337,7 +1342,189 @@ function initOCRStudio() {
   }
 
   updateOcrPipelineStep(1);
+  loadOcrContext();
 }
+
+function escapeHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+async function loadOcrContext() {
+  try {
+    const res = await fetch(`${API_BASE}/api/ocr/context`);
+    if (!res.ok) return;
+    const data = await res.json();
+    state.ocrStudies = data.studies || [];
+    state.ocrSeries = data.series || [];
+    state.ocrCategories = data.categories || [];
+    state.selectedStudyId = state.selectedStudyId || "1";
+    
+    const curSeries = state.ocrSeries.find(s => String(s.id) === String(state.selectedStudyId));
+    if (curSeries) {
+      state.selectedStudySlug = curSeries.slug;
+    } else if (state.ocrSeries.length > 0) {
+      state.selectedStudyId = state.ocrSeries[0].id;
+      state.selectedStudySlug = state.ocrSeries[0].slug;
+    }
+
+    renderOcrStudySelect();
+    renderNewStudySeriesSelect();
+  } catch (e) {
+    console.error("Failed to load OCR context:", e);
+  }
+}
+
+function renderOcrStudySelect() {
+  const select = document.getElementById("ocrStudySelect");
+  if (!select || !state.ocrStudies) return;
+  select.innerHTML = "";
+
+  state.ocrSeries.forEach(s => {
+    const opt = document.createElement("option");
+    opt.value = s.id;
+    opt.setAttribute("data-slug", s.slug);
+    opt.textContent = `${s.name} (Series #${s.id})`;
+    if (String(s.id) === String(state.selectedStudyId)) opt.selected = true;
+    select.appendChild(opt);
+  });
+
+  updateTargetStudyDisplay();
+}
+
+function renderNewStudySeriesSelect() {
+  const select = document.getElementById("newStudySeriesSelect");
+  if (!select || !state.ocrSeries) return;
+  select.innerHTML = "";
+  state.ocrSeries.forEach(ser => {
+    const opt = document.createElement("option");
+    opt.value = ser.id;
+    opt.textContent = `${ser.name} (Series #${ser.id})`;
+    select.appendChild(opt);
+  });
+}
+
+window.handleStudySelectChange = function(studyId) {
+  state.selectedStudyId = studyId;
+  const found = (state.ocrSeries || []).find(s => String(s.id) === String(studyId));
+  if (found) {
+    state.selectedStudySlug = found.slug;
+  }
+  updateTargetStudyDisplay();
+};
+
+function updateTargetStudyDisplay() {
+  const found = (state.ocrSeries || []).find(s => String(s.id) === String(state.selectedStudyId));
+  const seriesLabel = document.getElementById("targetStudySeriesLabel");
+  const countLabel = document.getElementById("targetStudySlideCount");
+  const displayLabel = document.getElementById("ocrTargetMonographDisplay");
+
+  if (found) {
+    if (seriesLabel) seriesLabel.textContent = `Scope: ${found.scope || 'General'}`;
+    if (countLabel) countLabel.textContent = `Status: ${found.status || 'Active'}`;
+    if (displayLabel) displayLabel.textContent = `${found.name} (Series #${found.id})`;
+  }
+}
+
+window.openNewStudyModal = function() {
+  renderNewStudySeriesSelect();
+  openModal("newStudyModal");
+};
+
+window.openNewSeriesInline = function() {
+  const box = document.getElementById("inlineNewSeriesBox");
+  if (box) {
+    box.style.display = "block";
+    const input = document.getElementById("inlineNewSeriesName");
+    if (input) input.focus();
+  }
+};
+
+window.closeNewSeriesInline = function() {
+  const box = document.getElementById("inlineNewSeriesBox");
+  if (box) box.style.display = "none";
+};
+
+window.handleInlineCreateSeries = async function() {
+  const input = document.getElementById("inlineNewSeriesName");
+  const name = input ? input.value.trim() : "";
+  if (!name) {
+    alert("Please enter a name for the new series.");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/ocr/series/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || "Failed to create series.");
+    }
+    const data = await res.json();
+    state.ocrSeries.push(data.series);
+    renderNewStudySeriesSelect();
+    const select = document.getElementById("newStudySeriesSelect");
+    if (select) select.value = data.series.id;
+    closeNewSeriesInline();
+    if (typeof showToast === "function") showToast(`Series '${name}' registered in database!`);
+  } catch (e) {
+    alert("Failed to create series: " + e.message);
+  }
+};
+
+window.handleNewStudyFormSubmit = async function(e) {
+  e.preventDefault();
+  const title = document.getElementById("newStudyTitleInput").value.trim();
+  const subtitle = document.getElementById("newStudySubtitleInput").value.trim();
+  const seriesId = parseInt(document.getElementById("newStudySeriesSelect").value, 10);
+  const accessLevel = document.getElementById("newStudyAccessSelect").value;
+
+  if (!title) {
+    alert("Please enter a study title.");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/ocr/studies/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: title,
+        subtitle: subtitle,
+        series_id: seriesId,
+        access_level: accessLevel
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || "Failed to create study.");
+    }
+
+    const data = await res.json();
+    const newStudy = data.study;
+    state.ocrStudies.unshift(newStudy);
+    state.selectedStudyId = newStudy.id;
+    state.selectedStudySlug = newStudy.slug;
+    renderOcrStudySelect();
+    closeModal("newStudyModal");
+    document.getElementById("newStudyForm").reset();
+
+    if (typeof showToast === "function") {
+      showToast(`Monograph '${newStudy.title}' created and set as active target!`);
+    }
+  } catch (err) {
+    alert("Failed to create monograph: " + err.message);
+  }
+};
 
 function updateOcrPipelineStep(stepNumber) {
   for (let i = 1; i <= 5; i++) {
@@ -1387,7 +1574,7 @@ async function handleFileUpload(file) {
 
   const formData = new FormData();
   formData.append("file", file);
-  formData.append("study_slug", "ganesa-variations-in-iconography");
+  formData.append("study_slug", state.selectedStudySlug || "ganesa-variations-in-iconography");
   formData.append("engine", engine);
 
   try {
@@ -1640,39 +1827,163 @@ function renderProposals(proposals) {
   if (!list) return;
   list.innerHTML = "";
 
-  if (countEl) countEl.innerText = `${proposals.length} detected`;
+  const validProposals = proposals || [];
+  if (countEl) countEl.innerText = `${validProposals.length} detected`;
 
-  proposals.forEach((p, idx) => {
+  if (validProposals.length === 0) {
+    list.innerHTML = '<div style="font-size:13px; color:var(--muted); padding:10px;">No proposals detected yet. Click "+ Add Custom Iconographic Entity" below or drop a plate image.</div>';
+    return;
+  }
+
+  const defaultCategories = ["Mudra", "Asana", "Divinity", "Ayudha", "Vahana", "Form", "Iconographic Element"];
+
+  validProposals.forEach((p, idx) => {
     const item = document.createElement("div");
-    item.className = "proposal-item";
+    item.className = "proposal-item" + (p.is_editing ? " editing" : "");
     const catClass = getCategoryClass(p.category);
 
-    item.innerHTML = `
-      <div style="flex:1; padding-right:12px;">
-        <div style="display:flex; align-items:center; flex-wrap:wrap; gap:6px;">
-          <span class="prop-cat-badge ${catClass}">${p.category}</span>
-          ${p.is_new_discovery ? `<span class="prop-discovery-tag"><img src="assets/icons/dharma-chakra.svg" class="fmm-icon" style="width:11px; height:11px;" alt="" /> Auto-Discovered Concept</span>` : ''}
+    if (p.is_editing) {
+      item.innerHTML = `
+        <div style="width:100%;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <strong style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent);">Editing Entity #${idx + 1}</strong>
+            <div style="display:flex; gap:6px;">
+              <button type="button" class="prop-action-btn save" onclick="saveProposalEdit(${idx})">✓ Save</button>
+              <button type="button" class="prop-action-btn" onclick="cancelProposalEdit(${idx})">Cancel</button>
+            </div>
+          </div>
+          <div class="prop-edit-grid">
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:var(--muted); display:block; margin-bottom:2px;">Canonical Name</label>
+              <input type="text" class="prop-edit-input" id="propEditCanon_${idx}" value="${escapeHtml(p.canonical_name || '')}" placeholder="e.g. Shikhara Mudra" />
+            </div>
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:var(--muted); display:block; margin-bottom:2px;">IAST Diacritical Name</label>
+              <input type="text" class="prop-edit-input" id="propEditIast_${idx}" value="${escapeHtml(p.iast_name || p.canonical_name || '')}" placeholder="e.g. Śikhara Mudrā" />
+            </div>
+          </div>
+          <div class="prop-edit-grid" style="margin-top:6px;">
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:var(--muted); display:block; margin-bottom:2px;">Category</label>
+              <select class="prop-edit-select" id="propEditCat_${idx}">
+                ${defaultCategories.map(cat => `<option value="${cat}" ${p.category === cat ? 'selected' : ''}>${cat}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label style="font-size:10.5px; font-weight:700; color:var(--muted); display:block; margin-bottom:2px;">Confidence (0.5 - 1.0)</label>
+              <input type="number" step="0.01" min="0.5" max="1.0" class="prop-edit-input" id="propEditConf_${idx}" value="${p.confidence || 0.95}" />
+            </div>
+          </div>
+          <div style="margin-top:6px;">
+            <label style="font-size:10.5px; font-weight:700; color:var(--muted); display:block; margin-bottom:2px;">Evidence Snippet / Shastra Context</label>
+            <input type="text" class="prop-edit-input" id="propEditEvid_${idx}" value="${escapeHtml(p.evidence_snippet || '')}" placeholder="Evidence from plate inscription..." />
+          </div>
         </div>
-        <div style="font-family:var(--font-serif); font-size:15px; font-weight:700; color:var(--ink); margin:4px 0 2px 0;">
-          ${p.canonical_name} ${p.iast_name ? `<span style="font-size:13px; font-weight:400; color:var(--muted); font-style:italic;">(${p.iast_name})</span>` : ''}
+      `;
+    } else {
+      item.innerHTML = `
+        <div style="flex:1; padding-right:12px;">
+          <div style="display:flex; align-items:center; flex-wrap:wrap; gap:6px;">
+            <span class="prop-cat-badge ${catClass}">${escapeHtml(p.category || 'Element')}</span>
+            ${p.is_new_discovery ? `<span class="prop-discovery-tag"><img src="assets/icons/dharma-chakra.svg" class="fmm-icon" style="width:11px; height:11px;" alt="" /> Auto-Discovered Concept</span>` : ''}
+          </div>
+          <div style="font-family:var(--font-serif); font-size:15px; font-weight:700; color:var(--ink); margin:4px 0 2px 0;">
+            ${escapeHtml(p.canonical_name || 'Untitled')} ${p.iast_name ? `<span style="font-size:13px; font-weight:400; color:var(--muted); font-style:italic;">(${escapeHtml(p.iast_name)})</span>` : ''}
+          </div>
+          <div style="font-size:12px; color:var(--muted); line-height:1.4;">
+            Evidence: <span style="font-style:italic; color:var(--ink-soft);">${escapeHtml(p.evidence_snippet || 'No evidence provided')}</span>
+          </div>
         </div>
-        <div style="font-size:12px; color:var(--muted); line-height:1.4;">
-          Evidence: <span style="font-style:italic; color:var(--ink-soft);">${p.evidence_snippet}</span>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span class="badge" style="background:#f0fdf4; color:#166534; font-weight:700; border:1px solid #bbf7d0; font-size:11px;">
+              ${Math.round((p.confidence || 0.95) * 100)}% Conf
+            </span>
+            <button type="button" class="prop-action-btn" onclick="toggleEditProposal(${idx})" title="Edit Entity">
+              <img src="assets/icons/sthapati-chisel.svg" class="fmm-icon" style="width:12px; height:12px;" alt="" /> Edit
+            </button>
+            <button type="button" class="prop-action-btn delete" onclick="deleteProposal(${idx})" title="Remove Entity">
+              <img src="assets/icons/ornament-cross.svg" class="fmm-icon" style="width:11px; height:11px;" alt="" />
+            </button>
+          </div>
+          <label style="font-size:11.5px; color:var(--ink-soft); display:flex; align-items:center; gap:4px; cursor:pointer;">
+            <input type="checkbox" ${p.approved !== false ? 'checked' : ''} onchange="toggleProposalApproval(${idx}, this.checked)">
+            <span>Include</span>
+          </label>
         </div>
-      </div>
-      <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
-        <span class="badge" style="background:#f0fdf4; color:#166534; font-weight:700; border:1px solid #bbf7d0; font-size:11px;">
-          ${Math.round((p.confidence || 0.95) * 100)}% Conf
-        </span>
-        <label style="font-size:11.5px; color:var(--ink-soft); display:flex; align-items:center; gap:4px; cursor:pointer;">
-          <input type="checkbox" ${p.approved !== false ? 'checked' : ''} onchange="toggleProposalApproval(${idx}, this.checked)">
-          <span>Include</span>
-        </label>
-      </div>
-    `;
+      `;
+    }
     list.appendChild(item);
   });
 }
+
+window.toggleEditProposal = function(idx) {
+  if (state.ocrResult && state.ocrResult.proposals && state.ocrResult.proposals[idx]) {
+    state.ocrResult.proposals[idx].is_editing = true;
+    renderProposals(state.ocrResult.proposals);
+  }
+};
+
+window.cancelProposalEdit = function(idx) {
+  if (state.ocrResult && state.ocrResult.proposals && state.ocrResult.proposals[idx]) {
+    state.ocrResult.proposals[idx].is_editing = false;
+    renderProposals(state.ocrResult.proposals);
+  }
+};
+
+window.saveProposalEdit = function(idx) {
+  if (!state.ocrResult || !state.ocrResult.proposals || !state.ocrResult.proposals[idx]) return;
+  const canonInput = document.getElementById(`propEditCanon_${idx}`);
+  const iastInput = document.getElementById(`propEditIast_${idx}`);
+  const catSelect = document.getElementById(`propEditCat_${idx}`);
+  const confInput = document.getElementById(`propEditConf_${idx}`);
+  const evidInput = document.getElementById(`propEditEvid_${idx}`);
+
+  const p = state.ocrResult.proposals[idx];
+  if (canonInput) p.canonical_name = canonInput.value.trim() || p.canonical_name;
+  if (iastInput) p.iast_name = iastInput.value.trim() || p.canonical_name;
+  if (catSelect) p.category = catSelect.value;
+  if (confInput) p.confidence = parseFloat(confInput.value) || 0.95;
+  if (evidInput) p.evidence_snippet = evidInput.value.trim();
+
+  p.is_editing = false;
+  p.approved = true;
+
+  renderProposals(state.ocrResult.proposals);
+  updatePrecommitImpact(state.ocrResult.proposals);
+};
+
+window.deleteProposal = function(idx) {
+  if (state.ocrResult && state.ocrResult.proposals) {
+    state.ocrResult.proposals.splice(idx, 1);
+    renderProposals(state.ocrResult.proposals);
+    updatePrecommitImpact(state.ocrResult.proposals);
+  }
+};
+
+window.addCustomProposal = function() {
+  if (!state.ocrResult) {
+    state.ocrResult = { proposals: [] };
+  }
+  if (!state.ocrResult.proposals) {
+    state.ocrResult.proposals = [];
+  }
+
+  state.ocrResult.proposals.push({
+    id: "prop_custom_" + Date.now(),
+    canonical_name: "",
+    iast_name: "",
+    category: "Mudra",
+    confidence: 1.0,
+    evidence_snippet: "Curator verified manual entry",
+    is_new_discovery: true,
+    is_editing: true,
+    approved: true
+  });
+
+  renderProposals(state.ocrResult.proposals);
+  updatePrecommitImpact(state.ocrResult.proposals);
+};
 
 window.toggleProposalApproval = function(index, isChecked) {
   if (state.ocrResult && state.ocrResult.proposals && state.ocrResult.proposals[index]) {
@@ -1714,14 +2025,24 @@ async function handleCuratorApproval() {
 
   const approvedProposals = (state.ocrResult.proposals || []).filter(p => p.approved !== false);
 
+  const targetStudy = (state.ocrStudies || []).find(s => s.id === state.selectedStudyId);
+  const studyTitle = targetStudy ? targetStudy.title : "Curated Iconography Study";
+
   const payload = {
-    study_id: "s_ganesa_001",
-    slide_number: 6,
-    slide_title: state.ocrResult.image_url.includes("mudra") ? "Shikhara Mudra: Canonical Iconographic Hand Gesture" : "Curated Slide: New Iconography Plate",
+    study_id: state.selectedStudyId || "s_ganesa_001",
+    slide_number: null,
+    slide_title: state.ocrResult.slide_title || (state.ocrResult.image_url && state.ocrResult.image_url.includes("mudra") ? "Shikhara Mudra: Canonical Iconographic Hand Gesture" : `Curated Plate: ${studyTitle}`),
     image_url: state.ocrResult.image_url,
     raw_ocr: state.ocrResult.raw_ocr,
     cleaned_ocr: state.ocrResult.cleaned_ocr,
-    approved_proposals: approvedProposals,
+    approved_proposals: approvedProposals.map(p => ({
+      term_id: p.term_id,
+      canonical_name: p.canonical_name,
+      iast_name: p.iast_name,
+      category: p.category,
+      confidence: p.confidence,
+      evidence_snippet: p.evidence_snippet
+    })),
     ocr_engine: state.ocrResult.engine_used || (state.selectedOcrEngine === "gemini_vision" ? "gemini-2.5-flash" : "windows_media_ocr")
   };
 

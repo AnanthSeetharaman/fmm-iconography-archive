@@ -456,7 +456,7 @@ def scholar_search(
         final_rank_score = round((affinity_pts * 50) + (confidence_pts * 30) + (text_pts * 20), 1)
 
         # Determine subscription requirement from access_level
-        needs_sub = (acc_lvl == 'member_only')
+        needs_sub = acc_lvl in ('scholar_tier', 'premium', 'member_only')
 
         results.append({
             "study_id": sid,

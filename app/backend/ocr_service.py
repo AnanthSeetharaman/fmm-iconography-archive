@@ -6,7 +6,7 @@ import json
 import uuid
 import subprocess
 from pathlib import Path
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from database import get_db
 from config import (
     IMAGES_STORAGE_DIR,
@@ -385,9 +385,137 @@ def extract_candidate_proposals(cleaned_text: str) -> List[Dict[str, Any]]:
 
     return proposals
 
+def get_ocr_context() -> Dict[str, Any]:
+    """
+    Returns existing studies, series, and taxonomy categories to populate
+    the Target Monograph selector and proposal category editors.
+    """
+    conn = get_db()
+    try:
+        studies_raw = conn.execute("""
+            SELECT s.id, s.title, s.slug, s.study_number, s.series_id, ser.name AS series_name, s.total_slides, s.access_level
+            FROM studies s
+            LEFT JOIN series ser ON s.series_id = ser.id
+            ORDER BY s.study_number ASC, s.title ASC
+        """).fetchall()
+        studies = []
+        for r in studies_raw:
+            studies.append({
+                "id": r[0],
+                "title": r[1],
+                "slug": r[2],
+                "study_number": r[3] or r[0],
+                "series_id": r[4],
+                "series_name": r[5] or "General Series",
+                "total_slides": r[6] or 0,
+                "access_level": r[7] or "public"
+            })
+
+        series_raw = conn.execute("SELECT id, name, slug FROM series ORDER BY sort_order ASC, name ASC").fetchall()
+        series = [{"id": r[0], "name": r[1], "slug": r[2]} for r in series_raw]
+
+        categories = [
+            {"code": "Mudra", "name": "Mudra / Hasta (Hand Gesture)"},
+            {"code": "Asana", "name": "Asana (Posture / Stance)"},
+            {"code": "Divinity", "name": "Divinity (Deity / Manifestation)"},
+            {"code": "Ayudha", "name": "Ayudha (Weapon / Sacred Attribute)"},
+            {"code": "Vahana", "name": "Vahana (Sacred Mount)"},
+            {"code": "Form", "name": "Form (Murti Bheda)"},
+            {"code": "Iconographic Element", "name": "Iconographic Element / Ornament"}
+        ]
+        return {"studies": studies, "series": series, "categories": categories}
+    finally:
+        conn.close()
+
+def create_new_study(title: str, subtitle: Optional[str] = None, series_id: int = 1, access_level: str = "public") -> Dict[str, Any]:
+    """
+    Creates a new research monograph study in the studies table with proper foreign keys.
+    """
+    conn = get_db()
+    try:
+        # Validate foreign key series_id
+        ser_row = conn.execute("SELECT id, name FROM series WHERE id = ?", (series_id,)).fetchone()
+        if not ser_row:
+            raise ValueError(f"Foreign key violation: series_id {series_id} not found in series table.")
+
+        clean_slug = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
+        if not clean_slug:
+            clean_slug = f"study-{uuid.uuid4().hex[:6]}"
+
+        existing_slug = conn.execute("SELECT id FROM studies WHERE slug = ?", (clean_slug,)).fetchone()
+        if existing_slug:
+            clean_slug = f"{clean_slug}-{uuid.uuid4().hex[:4]}"
+
+        study_id = f"s_{clean_slug[:24]}"
+        existing_id = conn.execute("SELECT id FROM studies WHERE id = ?", (study_id,)).fetchone()
+        if existing_id:
+            study_id = f"s_{uuid.uuid4().hex[:12]}"
+
+        count_studies = conn.execute("SELECT COUNT(*) FROM studies").fetchone()[0]
+        study_num = f"Study {count_studies + 1:03d}"
+        sub = subtitle or f"Iconographical research monograph on {title}"
+        summary = f"# {title}\n\n{sub}\n\nCurated research monograph in the Five Metal Masonry Sacred Iconography Archive."
+        study_vec = text_to_dense_vector(f"{title} {sub} {ser_row[1]}")
+
+        conn.execute("""
+            INSERT INTO studies (
+                id, series_id, slug, title, subtitle, study_number, summary_markdown,
+                access_level, total_slides, cover_image_url, embedding
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, '/storage/images/default_cover.jpg', ?)
+        """, (study_id, series_id, clean_slug, title, sub, study_num, summary, access_level, study_vec))
+
+        # Insert content access rule
+        car_tier = "scholar_pro" if access_level == "scholar_pro" else "free"
+        conn.execute("""
+            INSERT INTO content_access_rules (id, study_id, required_tier, allow_preview, allow_high_res_download, is_blocked)
+            VALUES (?, ?, ?, TRUE, TRUE, FALSE)
+        """, (f"car_{study_id}", study_id, car_tier))
+
+        return {
+            "id": study_id,
+            "title": title,
+            "slug": clean_slug,
+            "study_number": study_num,
+            "series_id": series_id,
+            "series_name": ser_row[1],
+            "total_slides": 0,
+            "access_level": access_level
+        }
+    finally:
+        conn.close()
+
+def create_new_series(name: str, scope: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Creates a new editorial series in the series table.
+    """
+    conn = get_db()
+    try:
+        clean_slug = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
+        existing = conn.execute("SELECT id FROM series WHERE slug = ? OR LOWER(name) = LOWER(?)", (clean_slug, name.strip())).fetchone()
+        if existing:
+            raise ValueError(f"An editorial series named '{name}' already exists.")
+
+        max_row = conn.execute("SELECT COALESCE(MAX(id), 0) FROM series").fetchone()
+        new_id = max_row[0] + 1
+        scope_val = scope or f"Archival research monograph series covering {name}"
+        ser_vec = text_to_dense_vector(f"{name} {scope_val}")
+
+        conn.execute("""
+            INSERT INTO series (id, slug, name, scope, status, sort_order, embedding)
+            VALUES (?, ?, ?, ?, 'active', ?, ?)
+        """, (new_id, clean_slug, name.strip(), scope_val, new_id, ser_vec))
+
+        return {
+            "id": new_id,
+            "name": name.strip(),
+            "slug": clean_slug
+        }
+    finally:
+        conn.close()
+
 def commit_curator_approval(
     study_id: str,
-    slide_number: int,
+    slide_number: Optional[int],
     slide_title: str,
     image_rel_url: str,
     raw_ocr: str,
@@ -396,30 +524,36 @@ def commit_curator_approval(
     ocr_engine: str = LLM_MODEL
 ) -> Dict[str, Any]:
     """
-    Commits an approved slide into DuckDB and returns the detailed 'List of Tables Impacted'.
+    Commits an approved slide and its edited proposals into DuckDB.
+    Strictly verifies and populates foreign key relations across:
+      studies -> study_slides -> slide_ocr_data
+      studies + taxonomy_terms -> study_taxonomy_mappings
+      studies + study_slides + taxonomy_terms -> ai_metadata_proposals
+      taxonomy_types -> taxonomy_terms -> term_aliases
     """
     conn = get_db()
     slide_id = f"sl_{uuid.uuid4().hex[:12]}"
 
-    # Check if study exists; if archive was reset, auto-create monograph with public access
+    # Check if study exists; auto-create if missing to avoid orphan FK
     study_row = conn.execute("SELECT id, total_slides FROM studies WHERE id = ?", (study_id,)).fetchone()
     if not study_row:
         clean_title = slide_title if slide_title else "Curated Iconography Study"
         study_vec = text_to_dense_vector(f"{clean_title} {slide_title} {cleaned_ocr}")
+        clean_slug = re.sub(r'[^a-z0-9]+', '-', study_id.lower()).strip('-')
         conn.execute("""
             INSERT INTO studies (id, series_id, slug, title, subtitle, study_number, summary_markdown, access_level, total_slides, cover_image_url, embedding)
             VALUES (?, 1, ?, ?, ?, 'Study 001', 'Curated Research Monograph', 'public', 0, ?, ?)
-        """, (study_id, f"monograph-{study_id}", clean_title, f"Monograph on {clean_title}", image_rel_url, study_vec))
+        """, (study_id, clean_slug, clean_title, f"Monograph on {clean_title}", image_rel_url, study_vec))
         conn.execute("""
             INSERT INTO content_access_rules (id, study_id, required_tier, allow_preview, allow_high_res_download, is_blocked)
             VALUES (?, ?, 'free', TRUE, TRUE, FALSE)
         """, (f"car_pub_{study_id}", study_id))
 
-    # Calculate actual slide number based on current count in database
+    # Calculate actual sequential slide number
     cur_count = conn.execute("SELECT COUNT(*) FROM study_slides WHERE study_id = ?", (study_id,)).fetchone()[0]
     effective_slide_number = cur_count + 1
 
-    # 1. Insert/Update study_slides with permanent 128-d vector embedding
+    # 1. Insert study_slides with 128-d dense vector embedding
     slide_vec = text_to_dense_vector(f"{slide_title} {cleaned_ocr}")
     conn.execute("""
         INSERT INTO study_slides (
@@ -428,10 +562,10 @@ def commit_curator_approval(
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         slide_id, study_id, effective_slide_number, slide_title, image_rel_url, image_rel_url,
-        f"Curated slide {effective_slide_number}", raw_ocr, cleaned_ocr, "High-resolution iconography plate", effective_slide_number, slide_vec
+        f"Curated plate {effective_slide_number}", raw_ocr, cleaned_ocr, "High-resolution iconography plate", effective_slide_number, slide_vec
     ))
 
-    # 2. Insert slide_ocr_data
+    # 2. Insert slide_ocr_data (FK: slide_id -> study_slides.id)
     ocr_id = f"ocr_{slide_id}"
     conn.execute("""
         INSERT INTO slide_ocr_data (
@@ -442,104 +576,156 @@ def commit_curator_approval(
         ocr_id, slide_id, ocr_engine, raw_ocr, cleaned_ocr, len(cleaned_ocr.split())
     ))
 
-    # 3. Update studies.total_slides
-    conn.execute("UPDATE studies SET total_slides = ?, cover_image_url = COALESCE(cover_image_url, ?) WHERE id = ?", (effective_slide_number, image_rel_url, study_id))
+    # 3. Update studies.total_slides and cover_image_url
+    conn.execute("""
+        UPDATE studies 
+        SET total_slides = ?, cover_image_url = COALESCE(cover_image_url, ?)
+        WHERE id = ?
+    """, (effective_slide_number, image_rel_url, study_id))
 
-    # 4. Insert approved proposals and study_taxonomy_mappings (Self-Learning Upsert)
+    # 4. Insert approved proposals, auto-create new taxonomy terms, and link study mappings
     mappings_count = 0
+    new_terms_count = 0
+    new_aliases_count = 0
+
     for p in approved_proposals:
+        canon_name = (p.get("canonical_name") or "").strip()
+        if not canon_name:
+            continue
+
+        cat_name = (p.get("category") or "Iconographic Element").strip()
+        iast_name = (p.get("iast_name") or canon_name).strip()
+        evidence = (p.get("evidence_snippet") or f"Curated iconographic reference for {canon_name}").strip()
+        conf_val = float(p.get("confidence") or 0.95)
+
         term_id = p.get("term_id")
-        canon_name = p.get("canonical_name", "")
-        cat_name = p.get("category", "Iconographic Element")
-        
-        if term_id:
-            # Check if term exists in taxonomy_terms, if not, auto-create it!
-            term_exists = conn.execute("SELECT id FROM taxonomy_terms WHERE id = ?", (term_id,)).fetchone()
-            if not term_exists:
-                # Find taxonomy_type_id
-                type_row = conn.execute("SELECT id FROM taxonomy_types WHERE name = ?", (cat_name,)).fetchone()
-                type_id = type_row[0] if type_row else 3
-                slug_val = re.sub(r'[^a-z0-9]+', '-', canon_name.lower()).strip('-')
-                
-                term_vec = text_to_dense_vector(f"{canon_name} {cat_name}")
-                conn.execute("""
-                    INSERT INTO taxonomy_terms (id, taxonomy_type_id, canonical_name, iast_name, slug, description, embedding)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (term_id, type_id, canon_name, canon_name, slug_val, f"Auto-discovered {cat_name} from curated archival plate", term_vec))
-                
-                # Auto-seed essential aliases
-                alias_list = [canon_name, canon_name.replace(" Mudra", ""), canon_name.replace(" Mudra", " Hasta"), canon_name + "s"]
-                for a in set(alias_list):
-                    if len(a) >= 3:
-                        aid = f"al_{term_id}_{re.sub(r'[^a-z0-9]+', '_', a.lower())}"
+        if not term_id:
+            slug_stem = re.sub(r'[^a-z0-9]+', '_', canon_name.lower()).strip('_')
+            term_id = f"t_{slug_stem}"
+
+        # Resolve taxonomy_type_id to guarantee valid foreign key (1 to 6)
+        cat_lower = cat_name.lower()
+        if "divin" in cat_lower or "deity" in cat_lower or "god" in cat_lower:
+            type_id = 1
+        elif "form" in cat_lower or "murti" in cat_lower:
+            type_id = 2
+        elif "place" in cat_lower or "temple" in cat_lower:
+            type_id = 4
+        elif "period" in cat_lower or "dynasty" in cat_lower:
+            type_id = 5
+        elif "source" in cat_lower or "shastra" in cat_lower:
+            type_id = 6
+        else:
+            type_id = 3  # Iconographic Element (Mudra, Asana, Ayudha, Vahana, etc.)
+
+        # Check if term exists; if not, create it with foreign key to taxonomy_types
+        term_exists = conn.execute("SELECT id FROM taxonomy_terms WHERE id = ?", (term_id,)).fetchone()
+        if not term_exists:
+            term_slug = re.sub(r'[^a-z0-9]+', '-', canon_name.lower()).strip('-')
+            term_vec = text_to_dense_vector(f"{canon_name} {iast_name} {cat_name}")
+            conn.execute("""
+                INSERT INTO taxonomy_terms (id, taxonomy_type_id, canonical_name, iast_name, slug, description, embedding)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (term_id, type_id, canon_name, iast_name, term_slug, f"Curated {cat_name} plate concept", term_vec))
+            new_terms_count += 1
+
+            # Auto-seed searchable aliases
+            alias_list = [canon_name]
+            if iast_name and iast_name != canon_name:
+                alias_list.append(iast_name)
+            if "mudra" in canon_name.lower():
+                alias_list.append(canon_name.lower().replace("mudra", "hasta").strip().title())
+            for a in set(alias_list):
+                if len(a) >= 3:
+                    aid = f"al_{term_id}_{re.sub(r'[^a-z0-9]+', '_', a.lower())}"
+                    # check alias exists
+                    if not conn.execute("SELECT id FROM term_aliases WHERE id = ?", (aid,)).fetchone():
                         conn.execute("""
                             INSERT INTO term_aliases (id, term_id, alias, alias_type, is_searchable)
-                            VALUES (?, ?, ?, 'auto_discovered', TRUE)
+                            VALUES (?, ?, ?, 'canonical_variant', TRUE)
                         """, (aid, term_id, a))
+                        new_aliases_count += 1
 
-            prop_id = f"pr_{uuid.uuid4().hex[:8]}"
-            conn.execute("""
-                INSERT INTO ai_metadata_proposals VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', 'Approved by curator in Visual Ingestion Studio'
-                )
-            """, (
-                prop_id, study_id, slide_id, slide_number,
-                cat_name.lower(),
-                canon_name,
-                term_id, p.get("confidence", 0.95), p.get("evidence_snippet", "")
-            ))
+        # Insert into ai_metadata_proposals (FK: study_id, slide_id, mapped_term_id)
+        prop_id = f"pr_{uuid.uuid4().hex[:8]}"
+        conn.execute("""
+            INSERT INTO ai_metadata_proposals VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', 'Approved and verified by curator in Visual Ingestion Studio'
+            )
+        """, (
+            prop_id, study_id, slide_id, effective_slide_number,
+            cat_name.lower(), canon_name, term_id, conf_val, evidence
+        ))
 
-            map_id = f"m_{uuid.uuid4().hex[:8]}"
-            conn.execute("""
-                INSERT INTO study_taxonomy_mappings VALUES (
-                    ?, ?, ?, 'materially_discussed', ?, ?, TRUE, 'Curator approved via Visual OCR Studio'
-                )
-            """, (
-                map_id, study_id, term_id, p.get("confidence", 0.95), json.dumps([slide_number])
-            ))
-            mappings_count += 1
+        # Insert into study_taxonomy_mappings (FK: study_id, term_id)
+        map_id = f"m_{uuid.uuid4().hex[:8]}"
+        conn.execute("""
+            INSERT INTO study_taxonomy_mappings VALUES (
+                ?, ?, ?, 'materially_discussed', ?, ?, TRUE, 'Curator approved via Visual OCR Studio'
+            )
+        """, (
+            map_id, study_id, term_id, conf_val, json.dumps([effective_slide_number])
+        ))
+        mappings_count += 1
 
     conn.close()
 
-    # Build the List of Tables Impacted audit
+    # Build List of Tables Impacted audit
     tables_impacted = [
         {
             "table_name": "study_slides",
             "operation": "INSERT",
             "rows_impacted": 1,
-            "description": f"Slide {slide_number} recorded with image URI '{image_rel_url}'"
+            "description": f"Plate {effective_slide_number} recorded in '{study_id}' (URI: {image_rel_url})"
         },
         {
             "table_name": "slide_ocr_data",
             "operation": "INSERT",
             "rows_impacted": 1,
-            "description": f"Detailed OCR data logged ({len(cleaned_ocr.split())} words extracted with 96% avg confidence)"
+            "description": f"Detailed OCR tokens and normalized text stored for slide '{slide_id}'"
         },
         {
             "table_name": "studies",
             "operation": "UPDATE",
             "rows_impacted": 1,
-            "description": f"Study '{study_id}' slide count updated to {effective_slide_number}"
+            "description": f"Study '{study_id}' total_slides updated to {effective_slide_number}"
         },
         {
             "table_name": "ai_metadata_proposals",
             "operation": "INSERT",
             "rows_impacted": mappings_count,
-            "description": f"{mappings_count} Layer 2 candidate terms approved with evidence snippets"
+            "description": f"{mappings_count} curator-edited proposals committed with evidence"
         },
         {
             "table_name": "study_taxonomy_mappings",
             "operation": "INSERT",
             "rows_impacted": mappings_count,
-            "description": f"{mappings_count} controlled Layer 3 taxonomy links established"
+            "description": f"{mappings_count} controlled Layer 3 taxonomy connections mapped"
         }
     ]
 
+    if new_terms_count > 0:
+        tables_impacted.append({
+            "table_name": "taxonomy_terms",
+            "operation": "INSERT",
+            "rows_impacted": new_terms_count,
+            "description": f"{new_terms_count} newly discovered controlled terms added to taxonomy"
+        })
+    if new_aliases_count > 0:
+        tables_impacted.append({
+            "table_name": "term_aliases",
+            "operation": "INSERT",
+            "rows_impacted": new_aliases_count,
+            "description": f"{new_aliases_count} phonetic and spelling aliases registered"
+        })
+
     return {
         "status": "success",
-        "message": f"Slide {slide_number} successfully ingested into DuckDB!",
+        "message": f"Plate {effective_slide_number} successfully ingested into DuckDB!",
         "slide_id": slide_id,
         "study_id": study_id,
+        "effective_slide_number": effective_slide_number,
         "image_url": image_rel_url,
         "tables_impacted": tables_impacted
     }
+

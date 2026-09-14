@@ -22,6 +22,9 @@ from ocr_service import (
     extract_candidate_proposals,
     commit_curator_approval,
     validate_iconography_image,
+    get_ocr_context,
+    create_new_study,
+    create_new_series,
 )
 from auth_service import (
     verify_google_id_token,
@@ -811,9 +814,65 @@ async def api_ocr_upload(
         "proposals": proposals
     }
 
+@app.get("/api/ocr/context")
+def api_ocr_context():
+    """
+    Returns available studies, series, and taxonomy categories for OCR Studio.
+    """
+    return get_ocr_context()
+
+class CreateStudyRequest(BaseModel):
+    title: str
+    subtitle: Optional[str] = None
+    series_id: int = 1
+    access_level: Optional[str] = "public"
+
+@app.post("/api/ocr/studies/create")
+def api_ocr_create_study(req: CreateStudyRequest, request: Request):
+    """
+    Guarded route: Creates a new study monograph linked to a valid series_id.
+    """
+    user = get_current_user_from_request(request)
+    if not user or user.get("role") not in ["curator", "admin"]:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required. Please sign in with an authorized Curator or Administrator account."
+        )
+    try:
+        new_study = create_new_study(
+            title=req.title,
+            subtitle=req.subtitle,
+            series_id=req.series_id,
+            access_level=req.access_level or "public"
+        )
+        return {"status": "success", "study": new_study}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+class CreateSeriesRequest(BaseModel):
+    name: str
+    scope: Optional[str] = None
+
+@app.post("/api/ocr/series/create")
+def api_ocr_create_series(req: CreateSeriesRequest, request: Request):
+    """
+    Guarded route: Creates a new editorial series.
+    """
+    user = get_current_user_from_request(request)
+    if not user or user.get("role") not in ["curator", "admin"]:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required. Please sign in with an authorized Curator or Administrator account."
+        )
+    try:
+        new_series = create_new_series(name=req.name, scope=req.scope)
+        return {"status": "success", "series": new_series}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 class ApproveSlideRequest(BaseModel):
     study_id: str
-    slide_number: int
+    slide_number: Optional[int] = None
     slide_title: str
     image_url: str
     raw_ocr: str

@@ -73,7 +73,8 @@
 
     <!-- Top Navigation Bar -->
     <header class="navbar">
-      <div class="brand-section">
+      <a class="brand-section" href="https://fmm-iconography-archive-kiioogld5q-uc.a.run.app/"
+        style="text-decoration: none; color: inherit;">
         <div class="brand-logo-emblem">
           <img src="assets/icons/5mm_website_logo.avif" alt="Five Metal Masonry Logo" class="brand-logo-img" />
         </div>
@@ -81,7 +82,7 @@
           <h1>FIVE METAL MASONRY</h1>
           <p>Iconography Archive · Scholar Edition</p>
         </div>
-      </div>
+      </a>
 
       <!-- Desktop Navigation Tabs -->
       <nav class="nav-tabs" id="desktopNavTabs">
@@ -103,7 +104,7 @@
           <span><img src="assets/icons/padma-scholar.svg" class="fmm-icon" alt="" /></span> Member Access
         </button>
       </nav>
-      <br>
+      <!-- <br> -->
       <!-- Auth & User Profile Section -->
       <div class="auth-section">
         <!-- Theme Switcher -->
@@ -119,9 +120,9 @@
         <!-- Not Authenticated View -->
         <div id="authGuestView" class="auth-guest-view">
           <div id="googleSignInButtonWrapper" class="g-signin-wrapper"></div>
-          <button id="headerSignInBtn" class="btn-secondary auth-signin-btn" onclick="openAuthModal()">
-            <span><img src="assets/icons/kunchika-key.svg" class="fmm-icon" alt="" /></span> <span class="btn-text">Sign
-              In</span>
+          <button id="headerSignInBtn" class="auth-signin-btn" onclick="openAuthModal()" title="Sign In">
+            <span style="display:flex; align-items:center; justify-content:center;"><img
+                src="assets/icons/kunchika-key.svg" class="fmm-icon" alt="Sign In" /></span>
           </button>
         </div>
 
@@ -147,7 +148,8 @@
             <button class="dropdown-item" onclick="openMyDownloads()">
               <span><img src="assets/icons/tamra-download.svg" class="fmm-icon" alt="" /></span> My Licensed Downloads
             </button>
-            <button class="dropdown-item" onclick="switchTab('ocr_studio'); toggleUserMenu();">
+            <button class="dropdown-item role-gated-tab" data-role-required="curator,admin"
+              onclick="switchTab('ocr_studio'); toggleUserMenu();">
               <span><img src="assets/icons/silpa-camera.svg" class="fmm-icon" alt="" /></span> OCR Ingestion Studio
             </button>
             <div class="dropdown-divider"></div>
@@ -212,7 +214,7 @@
         <!-- Filters Toolbar -->
         <div class="filter-bar">
           <select id="seriesFilterSelect" class="filter-select">
-            <option value="">All 19 Editorial Series</option>
+            <option value="">All Editorial Series</option>
           </select>
           <select id="accessFilterSelect" class="filter-select">
             <option value="all">Access: All Material</option>
@@ -407,6 +409,36 @@
               </div>
             </div>
 
+            <!-- TARGET RESEARCH MONOGRAPH SELECTOR CARD -->
+            <div class="target-study-selector-card" id="targetStudyCard"
+              style="margin-bottom:16px; background:var(--paper-sunken); border:1px solid var(--line); border-radius:var(--radius-md); padding:14px 18px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div>
+                  <span
+                    style="font-size:10.5px; text-transform:uppercase; letter-spacing:0.12em; color:var(--accent); font-weight:700;">Target
+                    Collection</span>
+                  <h4 style="font-family:var(--font-serif); font-size:16px; margin:2px 0 0 0; color:var(--ink);">Target
+                    Series</h4>
+                </div>
+                <button type="button" class="btn-secondary" id="btnOpenNewStudyModal" onclick="openNewStudyModal()"
+                  style="padding:6px 12px; font-size:12px; display:inline-flex; align-items:center; gap:6px;">
+                  <img src="assets/icons/sthapati-chisel.svg" class="fmm-icon" style="width:13px; height:13px;"
+                    alt="" /> + New Study
+                </button>
+              </div>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <select id="ocrStudySelect" class="filter-select" onchange="handleStudySelectChange(this.value)"
+                  style="flex:1; width:100%; font-size:13px; font-weight:600; padding:9px 12px; background:var(--paper); border:1px solid var(--line); border-radius:var(--radius-sm); color:var(--ink);">
+                  <option value="1" data-slug="panchaloha-primer" selected>Panchaloha Primer (Series #1)</option>
+                </select>
+              </div>
+              <div id="targetStudyMeta"
+                style="font-size:11.5px; color:var(--muted); margin-top:6px; display:flex; justify-content:space-between;">
+                <span id="targetStudySeriesLabel">Series: Panchaloha Primer</span>
+                <span id="targetStudySlideCount"></span>
+              </div>
+            </div>
+
             <div class="upload-card-box" id="ocrDropzone" style="cursor:pointer;">
               <div class="upload-icon"><img src="assets/icons/silpa-camera.svg" class="fmm-icon"
                   style="width:44px; height:44px;" alt="Camera" /></div>
@@ -453,8 +485,8 @@
                 style="font-size:12px; color:var(--muted); margin-top:10px; display:flex; flex-direction:column; gap:4px;">
                 <div>Storage URI: <code id="ocrStorageUri"
                     style="color:var(--accent); word-break:break-all;">/storage/images/...</code></div>
-                <div>Target Research Monograph: <strong style="color:var(--ink);">Ganesha: Variations in Iconography
-                    (Study 001)</strong></div>
+                <div>Target Research Monograph: <strong id="ocrTargetMonographDisplay"
+                    style="color:var(--ink);">Ganesha: Variations in Iconography (Study 001)</strong></div>
               </div>
             </div>
           </div>
@@ -499,9 +531,15 @@
                   Iconographic Entities (Layer 2 &rarr; Layer 3):</strong>
                 <span id="ocrProposalCount" style="font-size:11px; color:var(--muted);">0 detected</span>
               </div>
-              <div id="layer2ProposalsList" class="proposals-list" style="max-height:220px; overflow-y:auto;">
+              <div id="layer2ProposalsList" class="proposals-list" style="max-height:280px; overflow-y:auto;">
                 <div style="font-size:13px; color:var(--muted); padding:10px;">Proposals will appear here after OCR
                   analysis.</div>
+              </div>
+              <div style="display:flex; justify-content:flex-end; margin-top:8px;">
+                <!-- <button type="button" class="btn-secondary" id="btnAddCustomProposal" onclick="addCustomProposal()"
+                  style="font-size:12px; padding:6px 12px; display:inline-flex; align-items:center; gap:6px;">
+                  <span>+</span> Add Custom Iconographic Entity
+                </button> -->
               </div>
             </div>
 
@@ -610,7 +648,7 @@
         </button>
         <button class="studio-mode-btn" id="btnModeCrud" type="button">
           <img src="assets/icons/sthapati-chisel.svg" class="fmm-icon" style="width:16px; height:16px;" alt="" />
-          <span>Curatorial CRUD &amp; Maintenance</span>
+          <span>Curatorial &amp; Maintenance</span>
         </button>
       </div>
 
@@ -624,8 +662,8 @@
           <div class="medallion-legend-title">🏛️ Medallion Architecture — DuckDB Tables</div>
           <div class="medallion-legend-pills">
             <span class="medal-pill medal-raw">🟤 T_RAW · Bronze Ingest Layer</span>
-            <span class="medal-pill medal-ods">🔵 T_ODS · Silver Curated Layer</span>
-            <span class="medal-pill medal-syst">🟡 T_SYST · Gold System Layer</span>
+            <span class="medal-pill medal-ods">🔵 T_ODS · Gold Curated Layer</span>
+            <span class="medal-pill medal-syst">🟡 T_SYST · System Layer</span>
             <span class="medal-pill medal-pk">🔑 PK = Primary Key</span>
             <span class="medal-pill medal-fk">🔗 FK = Foreign Key</span>
           </div>
@@ -637,13 +675,13 @@
         <!-- Layer filter buttons -->
         <div class="er-layer-filter">
           <button class="er-filter-btn active" data-layer="all" onclick="filterErDiagram('all', this)">All Tables
-            (21)</button>
+          </button>
           <button class="er-filter-btn raw" data-layer="raw" onclick="filterErDiagram('raw', this)">🟤 Bronze RAW
-            (3)</button>
-          <button class="er-filter-btn ods" data-layer="ods" onclick="filterErDiagram('ods', this)">🔵 Silver ODS
-            (11)</button>
-          <button class="er-filter-btn syst" data-layer="syst" onclick="filterErDiagram('syst', this)">🟡 Gold SYST
-            (7)</button>
+          </button>
+          <button class="er-filter-btn ods" data-layer="ods" onclick="filterErDiagram('ods', this)">🔵 Gold ODS
+          </button>
+          <button class="er-filter-btn syst" data-layer="syst" onclick="filterErDiagram('syst', this)">🟡 SYST
+          </button>
         </div>
 
         <!-- ER Diagram Canvas -->
@@ -1005,7 +1043,7 @@
 
           <!-- ── COLUMN 3: GOLD SYST ── -->
           <div class="er-column er-col-syst">
-            <div class="er-col-header syst">🟡 Gold · T_SYST · System & DRM Layer</div>
+            <div class="er-col-header syst">🟡 · T_SYST · System & DRM Layer</div>
             <div class="er-col-desc">Internal system tables. Never exposed to scholars.</div>
 
             <!-- users root -->
@@ -1334,9 +1372,9 @@
                   alt="" /> All Tables (<span id="catCountAll">21</span>)</button>
               <button class="cat-pill medal-raw" data-cat="raw"><span class="layer-mini-tag raw">RAW</span> 🟤 Bronze
                 RAW (<span id="catCountRaw">3</span>)</button>
-              <button class="cat-pill medal-ods" data-cat="ods"><span class="layer-mini-tag ods">ODS</span> 🔵 Silver
+              <button class="cat-pill medal-ods" data-cat="ods"><span class="layer-mini-tag ods">ODS</span> 🔵 Gold
                 ODS (<span id="catCountOds">11</span>)</button>
-              <button class="cat-pill medal-syst" data-cat="syst"><span class="layer-mini-tag syst">SYST</span> 🟡 Gold
+              <button class="cat-pill medal-syst" data-cat="syst"><span class="layer-mini-tag syst">SYST</span> 🟡
                 SYST (<span id="catCountSyst">7</span>)</button>
             </div>
           </div>
@@ -1439,14 +1477,14 @@
               <span
                 style="font-size:11.5px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-right:4px;">Layer
                 Filter:</span>
-              <button class="crud-layer-btn active" data-layer="all" onclick="filterCrudByLayer('all', this)">✨ All (21
+              <button class="crud-layer-btn active" data-layer="all" onclick="filterCrudByLayer('all', this)"> All (
                 Tables)</button>
               <button class="crud-layer-btn" data-layer="raw" onclick="filterCrudByLayer('raw', this)">🟤 Bronze RAW
-                (3)</button>
-              <button class="crud-layer-btn" data-layer="ods" onclick="filterCrudByLayer('ods', this)">🔵 Silver ODS
-                (11)</button>
-              <button class="crud-layer-btn" data-layer="syst" onclick="filterCrudByLayer('syst', this)">🟡 Gold SYST
-                (7)</button>
+              </button>
+              <button class="crud-layer-btn" data-layer="ods" onclick="filterCrudByLayer('ods', this)">🔵 GOLD ODS
+              </button>
+              <button class="crud-layer-btn" data-layer="syst" onclick="filterCrudByLayer('syst', this)">🟡 SYST
+              </button>
             </div>
 
             <!-- Complete 21-Table Medallion CRUD Tabs -->
@@ -1466,7 +1504,7 @@
                   id="crudCount_ai_metadata_proposals">0</span>)
               </button>
 
-              <!-- 🔵 SILVER ODS LAYER -->
+              <!-- 🔵 GOLD ODS LAYER -->
               <button class="crud-tab-btn medal-ods active" data-crud="studies" data-layer="ods"
                 title="T_ODS_STUDIES — Research Monographs">
                 <span class="layer-mini-tag ods">ODS</span> Studies (<span id="crudCount_studies">7</span>)
@@ -1516,7 +1554,7 @@
                   id="crudCount_content_access_rules">0</span>)
               </button>
 
-              <!-- 🟡 GOLD SYST LAYER -->
+              <!-- 🟡 SYST LAYER -->
               <button class="crud-tab-btn medal-syst" data-crud="users" data-layer="syst"
                 title="T_SYST_USERS — User Identities & Roles">
                 <span class="layer-mini-tag syst">SYST</span> Users (<span id="crudCount_users">5</span>)
@@ -1771,6 +1809,97 @@
       </div>
     </section>
   </div> <!-- /.app-shell -->
+
+  <!-- ==================================================================== -->
+  <!-- MODAL: CREATE NEW RESEARCH MONOGRAPH / STUDY                         -->
+  <!-- ==================================================================== -->
+  <div class="modal-backdrop" id="newStudyModal">
+    <div class="modal-dialog" style="max-width:560px;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <img src="assets/icons/vimana-temple.svg" class="fmm-icon" style="width:22px; height:22px;" alt="" />
+          <div>
+            <span
+              style="font-size:11px; text-transform:uppercase; letter-spacing:0.12em; color:var(--accent); font-weight:700;">Curatorial
+              Architecture</span>
+            <h3 style="font-family:var(--font-serif); font-size:19px; margin:2px 0 0 0;">Create Research Monograph</h3>
+          </div>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('newStudyModal')">&times;</button>
+      </div>
+      <div style="padding:20px;">
+        <form id="newStudyForm" onsubmit="handleNewStudyFormSubmit(event)">
+          <div style="margin-bottom:14px;">
+            <label style="display:block; font-size:12.5px; font-weight:700; color:var(--ink); margin-bottom:5px;">
+              Monograph Title <span style="color:var(--danger);">*</span>
+            </label>
+            <input type="text" id="newStudyTitleInput" required class="form-input"
+              placeholder="e.g. Mudra Lexicon: Sacred Hand Gestures"
+              style="width:100%; padding:9px 12px; font-size:13.5px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--paper); color:var(--ink);" />
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+              <label style="font-size:12.5px; font-weight:700; color:var(--ink);">
+                Editorial Series <span style="color:var(--danger);">*</span>
+              </label>
+              <button type="button" class="sample-btn" onclick="openNewSeriesInline()"
+                style="padding:2px 8px; font-size:11px;">
+                + Add Series
+              </button>
+            </div>
+            <select id="newStudySeriesSelect" required class="filter-select"
+              style="width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--paper); color:var(--ink);">
+              <!-- Populated dynamically via /api/ocr/context -->
+            </select>
+          </div>
+
+          <!-- Inline quick series creator -->
+          <div id="inlineNewSeriesBox"
+            style="display:none; margin-bottom:14px; padding:12px; background:var(--paper-sunken); border:1px dashed var(--accent); border-radius:var(--radius-sm);">
+            <div style="font-size:12px; font-weight:700; color:var(--accent); margin-bottom:6px;">Create New Editorial
+              Series</div>
+            <div style="display:flex; gap:8px;">
+              <input type="text" id="inlineNewSeriesName" placeholder="New series name (e.g. Shilpa Shastra Mudras)"
+                style="flex:1; padding:7px 10px; font-size:12.5px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--paper); color:var(--ink);" />
+              <button type="button" class="btn-primary" onclick="handleInlineCreateSeries()"
+                style="padding:7px 12px; font-size:12px;">Save Series</button>
+              <button type="button" class="btn-secondary" onclick="closeNewSeriesInline()"
+                style="padding:7px 10px; font-size:12px;">Cancel</button>
+            </div>
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <label
+              style="display:block; font-size:12.5px; font-weight:700; color:var(--ink); margin-bottom:5px;">Subtitle /
+              Research Scope</label>
+            <input type="text" id="newStudySubtitleInput" class="form-input"
+              placeholder="e.g. Canonical Hastas &amp; Mudras in Sacred Bronze Casting"
+              style="width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--paper); color:var(--ink);" />
+          </div>
+
+          <div style="margin-bottom:20px;">
+            <label style="display:block; font-size:12.5px; font-weight:700; color:var(--ink); margin-bottom:5px;">Access
+              Tier</label>
+            <select id="newStudyAccessSelect" class="filter-select"
+              style="width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--paper); color:var(--ink);">
+              <option value="public" selected>Public (Free access to all scholars)</option>
+              <option value="scholar_pro">Scholar Pro (Premium subscription monograph)</option>
+            </select>
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:10px;">
+            <button type="button" class="btn-secondary" onclick="closeModal('newStudyModal')"
+              style="padding:9px 18px;">Cancel</button>
+            <button type="submit" class="btn-primary" style="padding:9px 22px;">
+              <span><img src="assets/icons/pramana-check.svg" class="fmm-icon" alt="" /></span> Create &amp; Set Target
+              Study
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 
 
   <!-- ==================================================================== -->
@@ -2055,13 +2184,19 @@
       <span class="tab-icon"><img src="assets/icons/shastra-search.svg" class="fmm-icon" alt="" /></span>
       <span class="tab-label">Scholar</span>
     </button>
-    <button class="mobile-tab-btn" data-tab="ocr_studio" onclick="switchTab('ocr_studio')">
+    <button class="mobile-tab-btn role-gated-tab" data-tab="ocr_studio" data-role-required="curator,admin"
+      onclick="switchTab('ocr_studio')">
       <span class="tab-icon"><img src="assets/icons/silpa-camera.svg" class="fmm-icon" alt="" /></span>
       <span class="tab-label">OCR Studio</span>
     </button>
-    <button class="mobile-tab-btn" data-tab="admin_studio" onclick="switchTab('admin_studio')">
+    <button class="mobile-tab-btn role-gated-tab" data-tab="admin_studio" data-role-required="admin"
+      onclick="switchTab('admin_studio')">
       <span class="tab-icon"><img src="assets/icons/sasana-registry.svg" class="fmm-icon" alt="" /></span>
       <span class="tab-label">Data Studio</span>
+    </button>
+    <button class="mobile-tab-btn" data-tab="about" onclick="switchTab('about')">
+      <span class="tab-icon"><img src="assets/icons/grantha-lexicon.svg" class="fmm-icon" alt="" /></span>
+      <span class="tab-label">About</span>
     </button>
     <button class="mobile-tab-btn" id="mobileAccountTabBtn" onclick="handleMobileAccountClick()">
       <span class="tab-icon" id="mobileAccountIcon"><img src="assets/icons/rishi-user.svg" class="fmm-icon"

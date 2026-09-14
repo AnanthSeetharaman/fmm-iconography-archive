@@ -521,10 +521,25 @@ def update_record(entity: str, record_id: Any, data: Dict[str, Any],
                     val = val.lower() in ("true", "1", "yes")
                 else:
                     val = bool(val)
-            if val != prev.get(f):
+            prev_val = prev.get(f)
+            
+            # Handle empty string from form vs None in DB
+            if val == "" and prev_val is None:
+                val = None
+                
+            # Handle numeric types (DuckDB returns int/float, UI sends str)
+            if prev_val is not None and isinstance(val, str):
+                if isinstance(prev_val, int):
+                    try: val = int(val)
+                    except ValueError: pass
+                elif isinstance(prev_val, float):
+                    try: val = float(val)
+                    except ValueError: pass
+
+            if val != prev_val:
                 set_clauses.append(f"{f} = ?")
                 vals.append(val)
-                changed_fields[f] = {"old": prev.get(f), "new": val}
+                changed_fields[f] = {"old": prev_val, "new": val}
             
     if not set_clauses:
         conn.close()

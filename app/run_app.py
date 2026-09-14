@@ -44,7 +44,9 @@ def main():
     print("="*80)
     print("Press CTRL+C to stop the server.\n")
 
-    uvicorn.run("main:app", host=host, port=port, reload=False, app_dir=str(BACKEND_DIR))
+    # Disable reload in production/Cloud Run to prevent child process port binding issues and timeouts
+    is_cloud_run = os.environ.get("K_SERVICE") is not None
+    uvicorn.run("main:app", host=host, port=port, reload=not is_cloud_run, app_dir=str(BACKEND_DIR))
 
 if __name__ == "__main__":
     main()
