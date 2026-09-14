@@ -278,8 +278,8 @@
           </div>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
-          <span class="badge olap-ready-badge">DuckDB OLAP
-            Ready</span>
+          <!-- <span class="badge olap-ready-badge">DuckDB OLAP -->
+          <!-- Ready</span> -->
         </div>
       </div>
 
@@ -437,1332 +437,1340 @@
                   </button>
                 </div> -->
             </div>
-          </div>
 
-          <!-- Preview Stage -->
-          <div class="preview-stage-card" id="ocrPreviewStage" style="display:none; margin-top:20px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-              <h4 style="font-family:var(--font-serif); font-size:18px; margin:0;">Visual Plate Inspection</h4>
-              <span id="ocrPlateBadge" class="badge"
-                style="background:var(--paper-sunken); font-size:11px; color:var(--ink-soft);">Canonical Plate</span>
-            </div>
-            <div class="stage-img-wrapper" style="position:relative;">
-              <img id="ocrPreviewImg" src="" alt="OCR Preview"
-                style="max-height:340px; object-fit:contain; width:100%; border-radius:var(--radius-sm);">
-            </div>
-            <div
-              style="font-size:12px; color:var(--muted); margin-top:10px; display:flex; flex-direction:column; gap:4px;">
-              <div>Storage URI: <code id="ocrStorageUri"
-                  style="color:var(--accent); word-break:break-all;">/storage/images/...</code></div>
-              <div>Target Research Monograph: <strong style="color:var(--ink);">Ganesha: Variations in Iconography
-                  (Study 001)</strong></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right: Extracted OCR & Proposals -->
-        <div class="preview-stage-card">
-          <h4 style="font-family:var(--font-serif); font-size:20px; margin-bottom:16px;">OCR Telemetry &amp; AI
-            Proposals</h4>
-
-          <div style="margin-bottom:16px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-              <strong
-                style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent);">Cleaned
-                Scholarly Sanskrit (IAST Repaired):</strong>
-              <span id="ocrCleanWordCount" style="font-size:11px; color:var(--muted);">0 words</span>
-            </div>
-            <div id="ocrCleanedText"
-              style="background:var(--paper-sunken); padding:14px; border-radius:var(--radius-md); font-size:13px; line-height:1.6; max-height:150px; overflow-y:auto; border:1px solid var(--line);">
-              No slide uploaded yet. Choose an archetype above or drop a plate image.
-            </div>
-          </div>
-
-          <div style="margin-bottom:16px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-              <strong style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted);"
-                id="ocrEngineStreamLabel">Raw
-                Engine Stream (Gemini 2.5 Flash Vision):</strong>
-              <span id="ocrEngineIndicatorTag" class="badge"
-                style="font-size:10.5px; background:rgba(181,139,75,0.15); color:var(--accent); border:1px solid rgba(181,139,75,0.3);">gemini-2.5-flash</span>
-            </div>
-            <div id="ocrRawText"
-              style="background:var(--paper-sunken); padding:10px 14px; border-radius:var(--radius-md); font-size:11px; color:var(--ink); font-family:monospace; max-height:75px; overflow-y:auto; border:1px solid var(--line);">
-              Awaiting OCR execution...
-            </div>
-          </div>
-
-          <!-- Layer 2 Proposals Checklist -->
-          <div style="margin-bottom:16px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-              <strong
-                style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--bronze);">Proposed
-                Iconographic Entities (Layer 2 &rarr; Layer 3):</strong>
-              <span id="ocrProposalCount" style="font-size:11px; color:var(--muted);">0 detected</span>
-            </div>
-            <div id="layer2ProposalsList" class="proposals-list" style="max-height:220px; overflow-y:auto;">
-              <div style="font-size:13px; color:var(--muted); padding:10px;">Proposals will appear here after OCR
-                analysis.</div>
-            </div>
-          </div>
-
-          <!-- Pre-Commit Tables Impacted Live Preview Bar -->
-          <div class="precommit-impact-bar" id="precommitImpactBar" style="display:none;">
-            <div style="font-size:12px; font-weight:700; color:var(--ink);">Estimated Tables Impacted:</div>
-            <div class="impact-chip-list" id="precommitImpactChips">
-              <span class="impact-chip insert">+1 study_slides</span>
-              <span class="impact-chip insert">+1 slide_ocr_data</span>
-              <span class="impact-chip update">+1 studies</span>
-              <span class="impact-chip insert" id="chipProposals">+2 ai_metadata_proposals</span>
-              <span class="impact-chip insert" id="chipMappings">+2 study_taxonomy_mappings</span>
-            </div>
-          </div>
-
-          <!-- Ingest Action -->
-          <button id="approveIngestBtn" class="btn-primary"
-            style="width:100%; justify-content:center; padding:14px; font-size:15px;" disabled>
-            <span><img src="assets/icons/pramana-check.svg" class="fmm-icon" alt="" /></span> Approve &amp; Ingest
-            into Knowledge Graph
-          </button>
-        </div>
-      </div>
-  </div>
-  </section>
-
-
-  <!-- ==================================================================== -->
-  <!-- SCREEN 3: ADMIN DATA STUDIO (TABLE & ROW INSPECTOR)                  -->
-  <!-- ==================================================================== -->
-  <section class="screen-pane" id="tab-admin_studio">
-    <div class="screen-header">
-      <div class="screen-eyebrow">Archival Telemetry &amp; Database Management</div>
-      <h2 class="screen-title">Data Studio &amp; 4-Tier Archival Architecture</h2>
-      <p class="screen-subtitle">
-        Direct real-time visibility into the 4-tier data architecture, self-learning knowledge loop, schema
-        definitions, and underlying DuckDB tables.
-      </p>
-    </div>
-
-    <!-- Archival Telemetry Metrics Bar (Live across all 18 tables) -->
-    <div class="archival-telemetry-bar">
-      <div class="telemetry-kpi-card">
-        <div class="telemetry-kpi-icon"><img src="assets/icons/kalasha-pot.svg" class="fmm-icon"
-            style="width:24px; height:24px;" alt="Tables" /></div>
-        <div>
-          <div class="telemetry-kpi-val" id="statTotalTables">21</div>
-          <div class="telemetry-kpi-lbl">DuckDB Tables</div>
-        </div>
-      </div>
-      <div class="telemetry-kpi-card">
-        <div class="telemetry-kpi-icon"><img src="assets/icons/grantha-lexicon.svg" class="fmm-icon"
-            style="width:24px; height:24px;" alt="Studies" /></div>
-        <div>
-          <div class="telemetry-kpi-val" id="statTotalStudies">6</div>
-          <div class="telemetry-kpi-lbl">Monographs</div>
-        </div>
-      </div>
-      <div class="telemetry-kpi-card">
-        <div class="telemetry-kpi-icon"><img src="assets/icons/silpa-camera.svg" class="fmm-icon"
-            style="width:24px; height:24px;" alt="Slides" /></div>
-        <div>
-          <div class="telemetry-kpi-val" id="statTotalSlides">26</div>
-          <div class="telemetry-kpi-lbl">Curated Plates</div>
-        </div>
-      </div>
-      <div class="telemetry-kpi-card">
-        <div class="telemetry-kpi-icon"><img src="assets/icons/sasana-registry.svg" class="fmm-icon"
-            style="width:24px; height:24px;" alt="Vocabulary" /></div>
-        <div>
-          <div class="telemetry-kpi-val" id="statTotalTerms">37</div>
-          <div class="telemetry-kpi-lbl">Canonical Terms</div>
-        </div>
-      </div>
-      <div class="telemetry-kpi-card">
-        <div class="telemetry-kpi-icon"><img src="assets/icons/yantra-link.svg" class="fmm-icon"
-            style="width:24px; height:24px;" alt="Aliases" /></div>
-        <div>
-          <div class="telemetry-kpi-val" id="statTotalAliases">72</div>
-          <div class="telemetry-kpi-lbl">Search Aliases</div>
-        </div>
-      </div>
-      <div class="telemetry-kpi-card">
-        <div class="telemetry-kpi-icon"><img src="assets/icons/dharma-chakra.svg" class="fmm-icon"
-            style="width:24px; height:24px;" alt="Speed" /></div>
-        <div>
-          <div class="telemetry-kpi-val">&lt; 2ms</div>
-          <div class="telemetry-kpi-lbl">OLAP Latency</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Data Studio Primary View Switcher -->
-    <div class="data-studio-mode-switcher">
-      <button class="studio-mode-btn active" id="btnModeArch" type="button">
-        <img src="assets/icons/vimana-temple.svg" class="fmm-icon" style="width:16px; height:16px;" alt="" />
-        <span>4-Tier Architecture &amp; Relational Schema</span>
-      </button>
-      <button class="studio-mode-btn" id="btnModeLoop" type="button">
-        <img src="assets/icons/mudra-hand.svg" class="fmm-icon" style="width:16px; height:16px;" alt="" />
-        <span>Self-Learning Knowledge Loop</span>
-      </button>
-      <button class="studio-mode-btn" id="btnModeTable" type="button">
-        <img src="assets/icons/kalasha-pot.svg" class="fmm-icon" style="width:16px; height:16px;" alt="" />
-        <span>Raw Database Table Inspector &amp; Roles</span>
-      </button>
-      <button class="studio-mode-btn" id="btnModeCrud" type="button">
-        <img src="assets/icons/sthapati-chisel.svg" class="fmm-icon" style="width:16px; height:16px;" alt="" />
-        <span>Curatorial CRUD &amp; Maintenance</span>
-      </button>
-    </div>
-
-    <!-- ================================================================ -->
-    <!-- VIEW 1: MEDALLION ARCHITECTURE ER DIAGRAM                        -->
-    <!-- ================================================================ -->
-    <div id="dataStudioArchView" class="studio-view-pane">
-
-      <!-- Legend bar -->
-      <div class="medallion-legend-bar">
-        <div class="medallion-legend-title">🏛️ Medallion Architecture — 21 DuckDB Tables</div>
-        <div class="medallion-legend-pills">
-          <span class="medal-pill medal-raw">🟤 T_RAW · Bronze Ingest Layer</span>
-          <span class="medal-pill medal-ods">🔵 T_ODS · Silver Curated Layer</span>
-          <span class="medal-pill medal-syst">🟡 T_SYST · Gold System Layer</span>
-          <span class="medal-pill medal-pk">🔑 PK = Primary Key</span>
-          <span class="medal-pill medal-fk">🔗 FK = Foreign Key</span>
-        </div>
-        <div class="medallion-legend-subtitle">
-          Hover any table card to see schema · Click to open CRUD · Arrows show FK dependencies
-        </div>
-      </div>
-
-      <!-- Layer filter buttons -->
-      <div class="er-layer-filter">
-        <button class="er-filter-btn active" data-layer="all" onclick="filterErDiagram('all', this)">All Tables
-          (21)</button>
-        <button class="er-filter-btn raw" data-layer="raw" onclick="filterErDiagram('raw', this)">🟤 Bronze RAW
-          (3)</button>
-        <button class="er-filter-btn ods" data-layer="ods" onclick="filterErDiagram('ods', this)">🔵 Silver ODS
-          (11)</button>
-        <button class="er-filter-btn syst" data-layer="syst" onclick="filterErDiagram('syst', this)">🟡 Gold SYST
-          (7)</button>
-      </div>
-
-      <!-- ER Diagram Canvas -->
-      <div class="er-canvas" id="erCanvas">
-
-        <!-- ── COLUMN 1: BRONZE RAW ── -->
-        <div class="er-column er-col-raw">
-          <div class="er-col-header raw">🟤 Bronze · T_RAW · Ingest Layer</div>
-          <div class="er-col-desc">Append-only raw data. Never edited directly by curators.</div>
-
-          <div class="er-table-card raw" data-layer="raw" data-table="slide_ocr_data"
-            onclick="openCrudForTable('slide_ocr_data')" title="T_RAW_SLIDE_OCR — Raw engine output">
-            <div class="er-table-header raw">
-              <span class="er-table-name">slide_ocr_data</span>
-              <span class="er-table-tag">T_RAW_SLIDE_OCR</span>
-            </div>
-            <div class="er-schema-tooltip">
-              <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
-              <div class="er-field fk">🔗 slide_id → study_slides.id <span class="ft">VARCHAR FK</span></div>
-              <div class="er-field">ocr_engine <span class="ft">VARCHAR</span></div>
-              <div class="er-field">language_tag <span class="ft">VARCHAR</span></div>
-              <div class="er-field edit-note">✏️ raw_ocr_output <span class="ft">CLOB</span></div>
-              <div class="er-field edit-note">✏️ normalized_text <span class="ft">CLOB</span></div>
-              <div class="er-field">word_count <span class="ft">INTEGER</span></div>
-              <div class="er-field">confidence_avg <span class="ft">DOUBLE</span></div>
-              <div class="er-field">tokens_json <span class="ft">VARCHAR</span></div>
-            </div>
-            <div class="er-card-footer">
-              <span class="er-row-count" id="erCount_slide_ocr_data">3 rows</span>
-              <span class="er-actions">
-                <button class="er-btn" onclick="openCrudForTable('slide_ocr_data');event.stopPropagation()">✏️
-                  CRUD</button>
-                <button class="er-btn" onclick="switchToTableInspector('slide_ocr_data');event.stopPropagation()">🔍
-                  Inspect</button>
-              </span>
-            </div>
-          </div>
-
-          <div class="er-table-card raw" data-layer="raw" data-table="study_slides"
-            onclick="openCrudForTable('study_slides')" title="T_RAW_STUDY_SLIDES — Raw plate images">
-            <div class="er-table-header raw">
-              <span class="er-table-name">study_slides</span>
-              <span class="er-table-tag">T_RAW_STUDY_SLIDES</span>
-            </div>
-            <div class="er-schema-tooltip">
-              <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
-              <div class="er-field fk">🔗 study_id → studies.id <span class="ft">VARCHAR FK</span></div>
-              <div class="er-field">slide_number <span class="ft">INTEGER</span></div>
-              <div class="er-field edit-note">✏️ slide_title <span class="ft">VARCHAR</span></div>
-              <div class="er-field">image_url <span class="ft">VARCHAR</span></div>
-              <div class="er-field">thumbnail_url <span class="ft">VARCHAR</span></div>
-              <div class="er-field edit-note">✏️ caption <span class="ft">VARCHAR</span></div>
-              <div class="er-field">extracted_ocr_text <span class="ft">CLOB</span></div>
-              <div class="er-field edit-note">✏️ cleaned_text <span class="ft">CLOB — Gold copy</span></div>
-              <div class="er-field">sort_order <span class="ft">INTEGER</span></div>
-            </div>
-            <div class="er-card-footer">
-              <span class="er-row-count" id="erCount_study_slides">27 rows</span>
-              <span class="er-actions">
-                <button class="er-btn" onclick="openCrudForTable('study_slides');event.stopPropagation()">✏️
-                  CRUD</button>
-                <button class="er-btn" onclick="switchToTableInspector('study_slides');event.stopPropagation()">🔍
-                  Inspect</button>
-              </span>
-            </div>
-          </div>
-
-          <div class="er-table-card raw" data-layer="raw" data-table="ai_metadata_proposals"
-            onclick="switchToTableInspector('ai_metadata_proposals')"
-            title="T_RAW_AI_PROPOSALS — AI-generated metadata before curator review">
-            <div class="er-table-header raw">
-              <span class="er-table-name">ai_metadata_proposals</span>
-              <span class="er-table-tag">T_RAW_AI_PROPOSALS</span>
-            </div>
-            <div class="er-schema-tooltip">
-              <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
-              <div class="er-field fk">🔗 slide_id → study_slides.id <span class="ft">VARCHAR FK</span></div>
-              <div class="er-field fk">🔗 study_id → studies.id <span class="ft">VARCHAR FK</span></div>
-              <div class="er-field">term_candidates_json <span class="ft">VARCHAR</span></div>
-              <div class="er-field">confidence_scores_json <span class="ft">VARCHAR</span></div>
-              <div class="er-field">proposal_status <span class="ft">VARCHAR</span></div>
-              <div class="er-field">curator_decision <span class="ft">VARCHAR</span></div>
-              <div class="er-field">created_at <span class="ft">TIMESTAMP</span></div>
-            </div>
-            <div class="er-card-footer">
-              <span class="er-row-count" id="erCount_ai_metadata_proposals">— rows</span>
-              <span class="er-actions">
-                <button class="er-btn"
-                  onclick="switchToTableInspector('ai_metadata_proposals');event.stopPropagation()">🔍
-                  Inspect</button>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <!-- ── COLUMN 2: SILVER ODS ── -->
-        <div class="er-column er-col-ods">
-          <div class="er-col-header ods">🔵 Silver · T_ODS · Curated Scholarly Layer</div>
-          <div class="er-col-desc">Validated, enriched content for curators and scholars.</div>
-
-          <!-- ROOT: series -->
-          <div class="er-table-card ods" data-layer="ods" data-table="series" onclick="openCrudForTable('series')"
-            title="T_ODS_SERIES — Curatorial publication series">
-            <div class="er-table-header ods">
-              <span class="er-table-name">series</span>
-              <span class="er-table-tag">T_ODS_SERIES</span>
-            </div>
-            <div class="er-schema-tooltip">
-              <div class="er-field pk">🔑 id <span class="ft">INTEGER PK</span></div>
-              <div class="er-field edit-note">✏️ name <span class="ft">VARCHAR</span></div>
-              <div class="er-field edit-note">✏️ slug <span class="ft">VARCHAR</span></div>
-              <div class="er-field edit-note">✏️ scope <span class="ft">VARCHAR</span></div>
-              <div class="er-field edit-note">✏️ status <span class="ft">VARCHAR</span></div>
-              <div class="er-field">cover_image_url <span class="ft">VARCHAR</span></div>
-              <div class="er-field">sort_order <span class="ft">INTEGER</span></div>
-              <div class="er-field audit">🕐 created_at / updated_at <span class="ft">TIMESTAMP</span></div>
-              <div class="er-field audit">👤 created_by / updated_by <span class="ft">VARCHAR</span></div>
-            </div>
-            <div class="er-card-footer">
-              <span class="er-row-count" id="erCount_series">19 rows</span>
-              <span class="er-actions">
-                <button class="er-btn" onclick="openCrudForTable('series');event.stopPropagation()">✏️ CRUD</button>
-                <button class="er-btn" onclick="switchToTableInspector('series');event.stopPropagation()">🔍
-                  Inspect</button>
-              </span>
-            </div>
-          </div>
-          <div class="er-fk-arrow">↓ 1:N series_id</div>
-
-          <!-- studies -->
-          <div class="er-table-card ods" data-layer="ods" data-table="studies" onclick="openCrudForTable('studies')"
-            title="T_ODS_STUDIES — Scholarly monographs">
-            <div class="er-table-header ods">
-              <span class="er-table-name">studies</span>
-              <span class="er-table-tag">T_ODS_STUDIES</span>
-            </div>
-            <div class="er-schema-tooltip">
-              <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
-              <div class="er-field fk">🔗 series_id → series.id <span class="ft">INTEGER FK</span></div>
-              <div class="er-field edit-note">✏️ title / subtitle <span class="ft">VARCHAR</span></div>
-              <div class="er-field edit-note">✏️ study_number <span class="ft">VARCHAR</span></div>
-              <div class="er-field edit-note">✏️ content_type / access_level / status <span class="ft">VARCHAR</span>
+            <!-- Preview Stage -->
+            <div class="preview-stage-card" id="ocrPreviewStage" style="display:none; margin-top:20px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h4 style="font-family:var(--font-serif); font-size:18px; margin:0;">Visual Plate Inspection</h4>
+                <span id="ocrPlateBadge" class="badge"
+                  style="background:var(--paper-sunken); font-size:11px; color:var(--ink-soft);">Canonical Plate</span>
               </div>
-              <div class="er-field edit-note">✏️ summary_markdown <span class="ft">CLOB</span></div>
-              <div class="er-field">original_publication_date <span class="ft">DATE</span></div>
-              <div class="er-field">cover_image_url <span class="ft">VARCHAR</span></div>
-              <div class="er-field">total_slides <span class="ft">INTEGER</span></div>
-              <div class="er-field edit-note">✏️ search_keywords / curator_notes <span class="ft">VARCHAR</span></div>
-              <div class="er-field audit">🕐 created_at / updated_at <span class="ft">TIMESTAMP</span></div>
-              <div class="er-field audit">👤 created_by / updated_by <span class="ft">VARCHAR</span></div>
-            </div>
-            <div class="er-card-footer">
-              <span class="er-row-count" id="erCount_studies">7 rows</span>
-              <span class="er-actions">
-                <button class="er-btn" onclick="openCrudForTable('studies');event.stopPropagation()">✏️ CRUD</button>
-                <button class="er-btn" onclick="switchToTableInspector('studies');event.stopPropagation()">🔍
-                  Inspect</button>
-              </span>
-            </div>
-          </div>
-          <div class="er-fk-arrow">↓ 1:N study_id (→ RAW layer)</div>
-
-          <!-- Bridge tables -->
-          <div class="er-table-card ods" data-layer="ods" data-table="study_taxonomy_mappings"
-            onclick="openCrudForTable('taxonomy_map')" title="T_ODS_STUDY_TAXONOMY — Bridge: Studies ↔ Terms">
-            <div class="er-table-header ods">
-              <span class="er-table-name">study_taxonomy_mappings</span>
-              <span class="er-table-tag">T_ODS_STUDY_TAXONOMY</span>
-            </div>
-            <div class="er-schema-tooltip">
-              <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
-              <div class="er-field fk">🔗 study_id → studies.id <span class="ft">VARCHAR FK</span></div>
-              <div class="er-field fk">🔗 term_id → taxonomy_terms.id <span class="ft">VARCHAR FK</span></div>
-              <div class="er-field">relevance_level <span class="ft">VARCHAR</span></div>
-              <div class="er-field">confidence_score <span class="ft">DOUBLE</span></div>
-              <div class="er-field">slide_numbers <span class="ft">VARCHAR</span></div>
-              <div class="er-field edit-note">✏️ curator_verified <span class="ft">BOOLEAN</span></div>
-              <div class="er-field edit-note">✏️ curator_notes <span class="ft">VARCHAR</span></div>
-            </div>
-            <div class="er-card-footer">
-              <span class="er-row-count" id="erCount_study_taxonomy_mappings">20 rows</span>
-              <span class="er-actions">
-                <button class="er-btn"
-                  onclick="switchToTableInspector('study_taxonomy_mappings');event.stopPropagation()">🔍
-                  Inspect</button>
-              </span>
+              <div class="stage-img-wrapper" style="position:relative;">
+                <img id="ocrPreviewImg" src="" alt="OCR Preview"
+                  style="max-height:340px; object-fit:contain; width:100%; border-radius:var(--radius-sm);">
+              </div>
+              <div
+                style="font-size:12px; color:var(--muted); margin-top:10px; display:flex; flex-direction:column; gap:4px;">
+                <div>Storage URI: <code id="ocrStorageUri"
+                    style="color:var(--accent); word-break:break-all;">/storage/images/...</code></div>
+                <div>Target Research Monograph: <strong style="color:var(--ink);">Ganesha: Variations in Iconography
+                    (Study 001)</strong></div>
+              </div>
             </div>
           </div>
 
-          <!-- Taxonomy chain -->
-          <div class="er-fk-arrow">↑ taxonomy_type_id</div>
-          <div class="er-table-card ods" data-layer="ods" data-table="taxonomy_types"
-            onclick="switchToTableInspector('taxonomy_types')"
-            title="T_ODS_TAXONOMY_TYPES — Controlled vocabulary types">
-            <div class="er-table-header ods">
-              <span class="er-table-name">taxonomy_types</span>
-              <span class="er-table-tag">T_ODS_TAXONOMY_TYPES</span>
-            </div>
-            <div class="er-schema-tooltip">
-              <div class="er-field pk">🔑 id <span class="ft">INTEGER PK</span></div>
-              <div class="er-field">code <span class="ft">VARCHAR UNIQUE</span></div>
-              <div class="er-field">name <span class="ft">VARCHAR</span></div>
-              <div class="er-field">description <span class="ft">VARCHAR</span></div>
-            </div>
-            <div class="er-card-footer">
-              <span class="er-row-count" id="erCount_taxonomy_types">6 rows</span>
-              <span class="er-actions">
-                <button class="er-btn" onclick="switchToTableInspector('taxonomy_types');event.stopPropagation()">🔍
-                  Inspect</button>
-              </span>
-            </div>
-          </div>
-          <div class="er-fk-arrow">↓ 1:N taxonomy_type_id</div>
+          <!-- Right: Extracted OCR & Proposals -->
+          <div class="preview-stage-card">
+            <h4 style="font-family:var(--font-serif); font-size:20px; margin-bottom:16px;">OCR Telemetry &amp; AI
+              Proposals</h4>
 
-          <div class="er-table-card ods" data-layer="ods" data-table="taxonomy_terms"
-            onclick="switchToTableInspector('taxonomy_terms')"
-            title="T_ODS_TAXONOMY_TERMS — Canonical iconographic terms">
-            <div class="er-table-header ods">
-              <span class="er-table-name">taxonomy_terms</span>
-              <span class="er-table-tag">T_ODS_TAXONOMY_TERMS</span>
+            <div style="margin-bottom:16px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <strong
+                  style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent);">Cleaned
+                  Scholarly Sanskrit (IAST Repaired):</strong>
+                <span id="ocrCleanWordCount" style="font-size:11px; color:var(--muted);">0 words</span>
+              </div>
+              <div id="ocrCleanedText"
+                style="background:var(--paper-sunken); padding:14px; border-radius:var(--radius-md); font-size:13px; line-height:1.6; max-height:150px; overflow-y:auto; border:1px solid var(--line);">
+                No slide uploaded yet. Choose an archetype above or drop a plate image.
+              </div>
             </div>
-            <div class="er-schema-tooltip">
-              <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
-              <div class="er-field fk">🔗 taxonomy_type_id → taxonomy_types.id <span class="ft">FK</span></div>
-              <div class="er-field fk">🔗 parent_id → taxonomy_terms.id <span class="ft">Self-FK</span></div>
-              <div class="er-field fk">🔗 dictionary_entry_id → dictionary_entries.id <span class="ft">FK</span></div>
-              <div class="er-field fk">🔗 place_id → places.id <span class="ft">FK</span></div>
-              <div class="er-field fk">🔗 period_id → periods_dynasties.id <span class="ft">FK</span></div>
-              <div class="er-field edit-note">✏️ canonical_name / iast_name <span class="ft">VARCHAR</span></div>
-              <div class="er-field">slug <span class="ft">VARCHAR</span></div>
-              <div class="er-field">description <span class="ft">VARCHAR</span></div>
-              <div class="er-field">is_active <span class="ft">BOOLEAN</span></div>
-              <div class="er-field">display_order <span class="ft">INTEGER</span></div>
-            </div>
-            <div class="er-card-footer">
-              <span class="er-row-count" id="erCount_taxonomy_terms">37 rows</span>
-              <span class="er-actions">
-                <button class="er-btn" onclick="switchToTableInspector('taxonomy_terms');event.stopPropagation()">🔍
-                  Inspect</button>
-              </span>
-            </div>
-          </div>
-          <div class="er-fk-arrow">↓ 1:N term_id</div>
 
-          <div class="er-table-card ods" data-layer="ods" data-table="term_aliases"
-            onclick="switchToTableInspector('term_aliases')"
-            title="T_ODS_TERM_ALIASES — Multilingual spellings and transliterations">
-            <div class="er-table-header ods">
-              <span class="er-table-name">term_aliases</span>
-              <span class="er-table-tag">T_ODS_TERM_ALIASES</span>
+            <div style="margin-bottom:16px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <strong style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted);"
+                  id="ocrEngineStreamLabel">Raw
+                  Engine Stream (Gemini 2.5 Flash Vision):</strong>
+                <span id="ocrEngineIndicatorTag" class="badge"
+                  style="font-size:10.5px; background:rgba(181,139,75,0.15); color:var(--accent); border:1px solid rgba(181,139,75,0.3);">gemini-2.5-flash</span>
+              </div>
+              <div id="ocrRawText"
+                style="background:var(--paper-sunken); padding:10px 14px; border-radius:var(--radius-md); font-size:11px; color:var(--ink); font-family:monospace; max-height:75px; overflow-y:auto; border:1px solid var(--line);">
+                Awaiting OCR execution...
+              </div>
             </div>
-            <div class="er-schema-tooltip">
-              <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
-              <div class="er-field fk">🔗 term_id → taxonomy_terms.id <span class="ft">VARCHAR FK</span></div>
-              <div class="er-field edit-note">✏️ alias <span class="ft">VARCHAR</span></div>
-              <div class="er-field">alias_type <span class="ft">VARCHAR (spelling_variant…)</span></div>
-              <div class="er-field">is_searchable <span class="ft">BOOLEAN</span></div>
-            </div>
-            <div class="er-card-footer">
-              <span class="er-row-count" id="erCount_term_aliases">72 rows</span>
-              <span class="er-actions">
-                <button class="er-btn" onclick="switchToTableInspector('term_aliases');event.stopPropagation()">🔍
-                  Inspect</button>
-              </span>
-            </div>
-          </div>
 
-          <!-- Reference tables (dictionary, places, periods, doc) -->
-          <div class="er-ref-group">
-            <div class="er-table-card ods compact" data-layer="ods" data-table="dictionary_entries"
-              onclick="openCrudForTable('dictionary')" title="T_ODS_DICTIONARY — IAST Sanskrit glossary">
-              <div class="er-table-header ods">
-                <span class="er-table-name">dictionary_entries</span>
-                <span class="er-table-tag">T_ODS_DICTIONARY</span>
+            <!-- Layer 2 Proposals Checklist -->
+            <div style="margin-bottom:16px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <strong
+                  style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--bronze);">Proposed
+                  Iconographic Entities (Layer 2 &rarr; Layer 3):</strong>
+                <span id="ocrProposalCount" style="font-size:11px; color:var(--muted);">0 detected</span>
+              </div>
+              <div id="layer2ProposalsList" class="proposals-list" style="max-height:220px; overflow-y:auto;">
+                <div style="font-size:13px; color:var(--muted); padding:10px;">Proposals will appear here after OCR
+                  analysis.</div>
+              </div>
+            </div>
+
+            <!-- Pre-Commit Tables Impacted Live Preview Bar -->
+            <div class="precommit-impact-bar" id="precommitImpactBar" style="display:none;">
+              <div style="font-size:12px; font-weight:700; color:var(--ink);">Estimated Tables Impacted:</div>
+              <div class="impact-chip-list" id="precommitImpactChips">
+                <span class="impact-chip insert">+1 study_slides</span>
+                <span class="impact-chip insert">+1 slide_ocr_data</span>
+                <span class="impact-chip update">+1 studies</span>
+                <span class="impact-chip insert" id="chipProposals">+2 ai_metadata_proposals</span>
+                <span class="impact-chip insert" id="chipMappings">+2 study_taxonomy_mappings</span>
+              </div>
+            </div>
+
+            <!-- Ingest Action -->
+            <button id="approveIngestBtn" class="btn-primary"
+              style="width:100%; justify-content:center; padding:14px; font-size:15px;" disabled>
+              <span><img src="assets/icons/pramana-check.svg" class="fmm-icon" alt="" /></span> Approve &amp; Ingest
+              into Knowledge Graph
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ==================================================================== -->
+    <!-- SCREEN 3: ADMIN DATA STUDIO (TABLE & ROW INSPECTOR)                  -->
+    <!-- ==================================================================== -->
+    <section class="screen-pane" id="tab-admin_studio">
+      <div class="screen-header">
+        <div class="screen-eyebrow">Archival Telemetry &amp; Database Management</div>
+        <h2 class="screen-title">Data Studio Browser</h2>
+        <p class="screen-subtitle">
+          Direct real-time visibility into the data architecture, self-learning knowledge loop, schema
+          definitions, and underlying tables.
+        </p>
+      </div>
+
+      <!-- Archival Telemetry Metrics Bar (Live across all 18 tables) -->
+      <div class="archival-telemetry-bar">
+        <div class="telemetry-kpi-card">
+          <div class="telemetry-kpi-icon"><img src="assets/icons/kalasha-pot.svg" class="fmm-icon"
+              style="width:24px; height:24px;" alt="Tables" /></div>
+          <div>
+            <div class="telemetry-kpi-val" id="statTotalTables">21</div>
+            <div class="telemetry-kpi-lbl">DuckDB Tables</div>
+          </div>
+        </div>
+        <div class="telemetry-kpi-card">
+          <div class="telemetry-kpi-icon"><img src="assets/icons/grantha-lexicon.svg" class="fmm-icon"
+              style="width:24px; height:24px;" alt="Studies" /></div>
+          <div>
+            <div class="telemetry-kpi-val" id="statTotalStudies">6</div>
+            <div class="telemetry-kpi-lbl">Monographs</div>
+          </div>
+        </div>
+        <div class="telemetry-kpi-card">
+          <div class="telemetry-kpi-icon"><img src="assets/icons/silpa-camera.svg" class="fmm-icon"
+              style="width:24px; height:24px;" alt="Slides" /></div>
+          <div>
+            <div class="telemetry-kpi-val" id="statTotalSlides">26</div>
+            <div class="telemetry-kpi-lbl">Curated Plates</div>
+          </div>
+        </div>
+        <div class="telemetry-kpi-card">
+          <div class="telemetry-kpi-icon"><img src="assets/icons/sasana-registry.svg" class="fmm-icon"
+              style="width:24px; height:24px;" alt="Vocabulary" /></div>
+          <div>
+            <div class="telemetry-kpi-val" id="statTotalTerms">37</div>
+            <div class="telemetry-kpi-lbl">Canonical Terms</div>
+          </div>
+        </div>
+        <div class="telemetry-kpi-card">
+          <div class="telemetry-kpi-icon"><img src="assets/icons/yantra-link.svg" class="fmm-icon"
+              style="width:24px; height:24px;" alt="Aliases" /></div>
+          <div>
+            <div class="telemetry-kpi-val" id="statTotalAliases">72</div>
+            <div class="telemetry-kpi-lbl">Search Aliases</div>
+          </div>
+        </div>
+        <div class="telemetry-kpi-card">
+          <div class="telemetry-kpi-icon"><img src="assets/icons/dharma-chakra.svg" class="fmm-icon"
+              style="width:24px; height:24px;" alt="Speed" /></div>
+          <div>
+            <div class="telemetry-kpi-val">&lt; 2ms</div>
+            <!-- <div class="telemetry-kpi-lbl">OLAP Latency</div> -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Studio Primary View Switcher -->
+      <div class="data-studio-mode-switcher">
+        <button class="studio-mode-btn active" id="btnModeArch" type="button">
+          <img src="assets/icons/vimana-temple.svg" class="fmm-icon" style="width:16px; height:16px;" alt="" />
+          <span>4-Tier Architecture &amp; Relational Schema</span>
+        </button>
+        <button class="studio-mode-btn" id="btnModeLoop" type="button">
+          <img src="assets/icons/mudra-hand.svg" class="fmm-icon" style="width:16px; height:16px;" alt="" />
+          <span>Self-Learning Knowledge Loop</span>
+        </button>
+        <button class="studio-mode-btn" id="btnModeTable" type="button">
+          <img src="assets/icons/kalasha-pot.svg" class="fmm-icon" style="width:16px; height:16px;" alt="" />
+          <span>Raw Database Table Inspector &amp; Roles</span>
+        </button>
+        <button class="studio-mode-btn" id="btnModeCrud" type="button">
+          <img src="assets/icons/sthapati-chisel.svg" class="fmm-icon" style="width:16px; height:16px;" alt="" />
+          <span>Curatorial CRUD &amp; Maintenance</span>
+        </button>
+      </div>
+
+      <!-- ================================================================ -->
+      <!-- VIEW 1: MEDALLION ARCHITECTURE ER DIAGRAM                        -->
+      <!-- ================================================================ -->
+      <div id="dataStudioArchView" class="studio-view-pane">
+
+        <!-- Legend bar -->
+        <div class="medallion-legend-bar">
+          <div class="medallion-legend-title">🏛️ Medallion Architecture — 21 DuckDB Tables</div>
+          <div class="medallion-legend-pills">
+            <span class="medal-pill medal-raw">🟤 T_RAW · Bronze Ingest Layer</span>
+            <span class="medal-pill medal-ods">🔵 T_ODS · Silver Curated Layer</span>
+            <span class="medal-pill medal-syst">🟡 T_SYST · Gold System Layer</span>
+            <span class="medal-pill medal-pk">🔑 PK = Primary Key</span>
+            <span class="medal-pill medal-fk">🔗 FK = Foreign Key</span>
+          </div>
+          <div class="medallion-legend-subtitle">
+            Hover any table card to see schema · Click to open CRUD · Arrows show FK dependencies
+          </div>
+        </div>
+
+        <!-- Layer filter buttons -->
+        <div class="er-layer-filter">
+          <button class="er-filter-btn active" data-layer="all" onclick="filterErDiagram('all', this)">All Tables
+            (21)</button>
+          <button class="er-filter-btn raw" data-layer="raw" onclick="filterErDiagram('raw', this)">🟤 Bronze RAW
+            (3)</button>
+          <button class="er-filter-btn ods" data-layer="ods" onclick="filterErDiagram('ods', this)">🔵 Silver ODS
+            (11)</button>
+          <button class="er-filter-btn syst" data-layer="syst" onclick="filterErDiagram('syst', this)">🟡 Gold SYST
+            (7)</button>
+        </div>
+
+        <!-- ER Diagram Canvas -->
+        <div class="er-canvas" id="erCanvas">
+
+          <!-- ── COLUMN 1: BRONZE RAW ── -->
+          <div class="er-column er-col-raw">
+            <div class="er-col-header raw">🟤 Bronze · T_RAW · Ingest Layer</div>
+            <div class="er-col-desc">Append-only raw data. Never edited directly by curators.</div>
+
+            <div class="er-table-card raw" data-layer="raw" data-table="slide_ocr_data"
+              onclick="openCrudForTable('slide_ocr_data')" title="T_RAW_SLIDE_OCR — Raw engine output">
+              <div class="er-table-header raw">
+                <span class="er-table-name">slide_ocr_data</span>
+                <span class="er-table-tag">T_RAW_SLIDE_OCR</span>
               </div>
               <div class="er-schema-tooltip">
                 <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
-                <div class="er-field">slug / headword / iast_headword <span class="ft">VARCHAR</span></div>
-                <div class="er-field edit-note">✏️ definition / etymology / extended_notes <span class="ft">CLOB</span>
-                </div>
-                <div class="er-field audit">🕐 created_at / updated_at | 👤 created_by / updated_by</div>
+                <div class="er-field fk">🔗 slide_id → study_slides.id <span class="ft">VARCHAR FK</span></div>
+                <div class="er-field">ocr_engine <span class="ft">VARCHAR</span></div>
+                <div class="er-field">language_tag <span class="ft">VARCHAR</span></div>
+                <div class="er-field edit-note">✏️ raw_ocr_output <span class="ft">CLOB</span></div>
+                <div class="er-field edit-note">✏️ normalized_text <span class="ft">CLOB</span></div>
+                <div class="er-field">word_count <span class="ft">INTEGER</span></div>
+                <div class="er-field">confidence_avg <span class="ft">DOUBLE</span></div>
+                <div class="er-field">tokens_json <span class="ft">VARCHAR</span></div>
               </div>
               <div class="er-card-footer">
-                <span class="er-row-count" id="erCount_dictionary_entries">6 rows</span>
+                <span class="er-row-count" id="erCount_slide_ocr_data">3 rows</span>
                 <span class="er-actions">
-                  <button class="er-btn" onclick="openCrudForTable('dictionary');event.stopPropagation()">✏️
+                  <button class="er-btn" onclick="openCrudForTable('slide_ocr_data');event.stopPropagation()">✏️
                     CRUD</button>
-                </span>
-              </div>
-            </div>
-
-            <div class="er-table-card ods compact" data-layer="ods" data-table="places"
-              onclick="switchToTableInspector('places')" title="T_ODS_PLACES — Temple & geography registry">
-              <div class="er-table-header ods">
-                <span class="er-table-name">places</span>
-                <span class="er-table-tag">T_ODS_PLACES</span>
-              </div>
-              <div class="er-schema-tooltip">
-                <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
-                <div class="er-field">slug / name / native_name <span class="ft">VARCHAR</span></div>
-                <div class="er-field">temple_name / deity_enshrined / tradition <span class="ft">VARCHAR</span></div>
-                <div class="er-field">town_city / district / state / country <span class="ft">VARCHAR</span></div>
-              </div>
-              <div class="er-card-footer">
-                <span class="er-row-count" id="erCount_places">3 rows</span>
-                <span class="er-actions">
-                  <button class="er-btn" onclick="switchToTableInspector('places');event.stopPropagation()">🔍
+                  <button class="er-btn" onclick="switchToTableInspector('slide_ocr_data');event.stopPropagation()">🔍
                     Inspect</button>
                 </span>
               </div>
             </div>
 
-            <div class="er-table-card ods compact" data-layer="ods" data-table="periods_dynasties"
-              onclick="switchToTableInspector('periods_dynasties')" title="T_ODS_PERIODS — Dynastic periods">
+            <div class="er-table-card raw" data-layer="raw" data-table="study_slides"
+              onclick="openCrudForTable('study_slides')" title="T_RAW_STUDY_SLIDES — Raw plate images">
+              <div class="er-table-header raw">
+                <span class="er-table-name">study_slides</span>
+                <span class="er-table-tag">T_RAW_STUDY_SLIDES</span>
+              </div>
+              <div class="er-schema-tooltip">
+                <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
+                <div class="er-field fk">🔗 study_id → studies.id <span class="ft">VARCHAR FK</span></div>
+                <div class="er-field">slide_number <span class="ft">INTEGER</span></div>
+                <div class="er-field edit-note">✏️ slide_title <span class="ft">VARCHAR</span></div>
+                <div class="er-field">image_url <span class="ft">VARCHAR</span></div>
+                <div class="er-field">thumbnail_url <span class="ft">VARCHAR</span></div>
+                <div class="er-field edit-note">✏️ caption <span class="ft">VARCHAR</span></div>
+                <div class="er-field">extracted_ocr_text <span class="ft">CLOB</span></div>
+                <div class="er-field edit-note">✏️ cleaned_text <span class="ft">CLOB — Gold copy</span></div>
+                <div class="er-field">sort_order <span class="ft">INTEGER</span></div>
+              </div>
+              <div class="er-card-footer">
+                <span class="er-row-count" id="erCount_study_slides">27 rows</span>
+                <span class="er-actions">
+                  <button class="er-btn" onclick="openCrudForTable('study_slides');event.stopPropagation()">✏️
+                    CRUD</button>
+                  <button class="er-btn" onclick="switchToTableInspector('study_slides');event.stopPropagation()">🔍
+                    Inspect</button>
+                </span>
+              </div>
+            </div>
+
+            <div class="er-table-card raw" data-layer="raw" data-table="ai_metadata_proposals"
+              onclick="switchToTableInspector('ai_metadata_proposals')"
+              title="T_RAW_AI_PROPOSALS — AI-generated metadata before curator review">
+              <div class="er-table-header raw">
+                <span class="er-table-name">ai_metadata_proposals</span>
+                <span class="er-table-tag">T_RAW_AI_PROPOSALS</span>
+              </div>
+              <div class="er-schema-tooltip">
+                <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
+                <div class="er-field fk">🔗 slide_id → study_slides.id <span class="ft">VARCHAR FK</span></div>
+                <div class="er-field fk">🔗 study_id → studies.id <span class="ft">VARCHAR FK</span></div>
+                <div class="er-field">term_candidates_json <span class="ft">VARCHAR</span></div>
+                <div class="er-field">confidence_scores_json <span class="ft">VARCHAR</span></div>
+                <div class="er-field">proposal_status <span class="ft">VARCHAR</span></div>
+                <div class="er-field">curator_decision <span class="ft">VARCHAR</span></div>
+                <div class="er-field">created_at <span class="ft">TIMESTAMP</span></div>
+              </div>
+              <div class="er-card-footer">
+                <span class="er-row-count" id="erCount_ai_metadata_proposals">— rows</span>
+                <span class="er-actions">
+                  <button class="er-btn"
+                    onclick="switchToTableInspector('ai_metadata_proposals');event.stopPropagation()">🔍
+                    Inspect</button>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── COLUMN 2: SILVER ODS ── -->
+          <div class="er-column er-col-ods">
+            <div class="er-col-header ods">🔵 Silver · T_ODS · Curated Scholarly Layer</div>
+            <div class="er-col-desc">Validated, enriched content for curators and scholars.</div>
+
+            <!-- ROOT: series -->
+            <div class="er-table-card ods" data-layer="ods" data-table="series" onclick="openCrudForTable('series')"
+              title="T_ODS_SERIES — Curatorial publication series">
               <div class="er-table-header ods">
-                <span class="er-table-name">periods_dynasties</span>
-                <span class="er-table-tag">T_ODS_PERIODS</span>
+                <span class="er-table-name">series</span>
+                <span class="er-table-tag">T_ODS_SERIES</span>
               </div>
               <div class="er-schema-tooltip">
                 <div class="er-field pk">🔑 id <span class="ft">INTEGER PK</span></div>
-                <div class="er-field">name / dynasty_type / region <span class="ft">VARCHAR</span></div>
-                <div class="er-field">time_span / description <span class="ft">VARCHAR</span></div>
+                <div class="er-field edit-note">✏️ name <span class="ft">VARCHAR</span></div>
+                <div class="er-field edit-note">✏️ slug <span class="ft">VARCHAR</span></div>
+                <div class="er-field edit-note">✏️ scope <span class="ft">VARCHAR</span></div>
+                <div class="er-field edit-note">✏️ status <span class="ft">VARCHAR</span></div>
+                <div class="er-field">cover_image_url <span class="ft">VARCHAR</span></div>
+                <div class="er-field">sort_order <span class="ft">INTEGER</span></div>
+                <div class="er-field audit">🕐 created_at / updated_at <span class="ft">TIMESTAMP</span></div>
+                <div class="er-field audit">👤 created_by / updated_by <span class="ft">VARCHAR</span></div>
               </div>
               <div class="er-card-footer">
-                <span class="er-row-count" id="erCount_periods_dynasties">8 rows</span>
+                <span class="er-row-count" id="erCount_series">19 rows</span>
+                <span class="er-actions">
+                  <button class="er-btn" onclick="openCrudForTable('series');event.stopPropagation()">✏️ CRUD</button>
+                  <button class="er-btn" onclick="switchToTableInspector('series');event.stopPropagation()">🔍
+                    Inspect</button>
+                </span>
+              </div>
+            </div>
+            <div class="er-fk-arrow">↓ 1:N series_id</div>
+
+            <!-- studies -->
+            <div class="er-table-card ods" data-layer="ods" data-table="studies" onclick="openCrudForTable('studies')"
+              title="T_ODS_STUDIES — Scholarly monographs">
+              <div class="er-table-header ods">
+                <span class="er-table-name">studies</span>
+                <span class="er-table-tag">T_ODS_STUDIES</span>
+              </div>
+              <div class="er-schema-tooltip">
+                <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
+                <div class="er-field fk">🔗 series_id → series.id <span class="ft">INTEGER FK</span></div>
+                <div class="er-field edit-note">✏️ title / subtitle <span class="ft">VARCHAR</span></div>
+                <div class="er-field edit-note">✏️ study_number <span class="ft">VARCHAR</span></div>
+                <div class="er-field edit-note">✏️ content_type / access_level / status <span class="ft">VARCHAR</span>
+                </div>
+                <div class="er-field edit-note">✏️ summary_markdown <span class="ft">CLOB</span></div>
+                <div class="er-field">original_publication_date <span class="ft">DATE</span></div>
+                <div class="er-field">cover_image_url <span class="ft">VARCHAR</span></div>
+                <div class="er-field">total_slides <span class="ft">INTEGER</span></div>
+                <div class="er-field edit-note">✏️ search_keywords / curator_notes <span class="ft">VARCHAR</span></div>
+                <div class="er-field audit">🕐 created_at / updated_at <span class="ft">TIMESTAMP</span></div>
+                <div class="er-field audit">👤 created_by / updated_by <span class="ft">VARCHAR</span></div>
+              </div>
+              <div class="er-card-footer">
+                <span class="er-row-count" id="erCount_studies">7 rows</span>
+                <span class="er-actions">
+                  <button class="er-btn" onclick="openCrudForTable('studies');event.stopPropagation()">✏️ CRUD</button>
+                  <button class="er-btn" onclick="switchToTableInspector('studies');event.stopPropagation()">🔍
+                    Inspect</button>
+                </span>
+              </div>
+            </div>
+            <div class="er-fk-arrow">↓ 1:N study_id (→ RAW layer)</div>
+
+            <!-- Bridge tables -->
+            <div class="er-table-card ods" data-layer="ods" data-table="study_taxonomy_mappings"
+              onclick="openCrudForTable('taxonomy_map')" title="T_ODS_STUDY_TAXONOMY — Bridge: Studies ↔ Terms">
+              <div class="er-table-header ods">
+                <span class="er-table-name">study_taxonomy_mappings</span>
+                <span class="er-table-tag">T_ODS_STUDY_TAXONOMY</span>
+              </div>
+              <div class="er-schema-tooltip">
+                <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
+                <div class="er-field fk">🔗 study_id → studies.id <span class="ft">VARCHAR FK</span></div>
+                <div class="er-field fk">🔗 term_id → taxonomy_terms.id <span class="ft">VARCHAR FK</span></div>
+                <div class="er-field">relevance_level <span class="ft">VARCHAR</span></div>
+                <div class="er-field">confidence_score <span class="ft">DOUBLE</span></div>
+                <div class="er-field">slide_numbers <span class="ft">VARCHAR</span></div>
+                <div class="er-field edit-note">✏️ curator_verified <span class="ft">BOOLEAN</span></div>
+                <div class="er-field edit-note">✏️ curator_notes <span class="ft">VARCHAR</span></div>
+              </div>
+              <div class="er-card-footer">
+                <span class="er-row-count" id="erCount_study_taxonomy_mappings">20 rows</span>
                 <span class="er-actions">
                   <button class="er-btn"
-                    onclick="switchToTableInspector('periods_dynasties');event.stopPropagation()">🔍 Inspect</button>
+                    onclick="switchToTableInspector('study_taxonomy_mappings');event.stopPropagation()">🔍
+                    Inspect</button>
                 </span>
               </div>
             </div>
 
-            <div class="er-table-card ods compact" data-layer="ods" data-table="doc_ref_catalog"
-              onclick="openCrudForTable('catalog')" title="T_ODS_DOC_CATALOG — Primary text sources">
+            <!-- Taxonomy chain -->
+            <div class="er-fk-arrow">↑ taxonomy_type_id</div>
+            <div class="er-table-card ods" data-layer="ods" data-table="taxonomy_types"
+              onclick="switchToTableInspector('taxonomy_types')"
+              title="T_ODS_TAXONOMY_TYPES — Controlled vocabulary types">
               <div class="er-table-header ods">
-                <span class="er-table-name">doc_ref_catalog</span>
-                <span class="er-table-tag">T_ODS_DOC_CATALOG</span>
+                <span class="er-table-name">taxonomy_types</span>
+                <span class="er-table-tag">T_ODS_TAXONOMY_TYPES</span>
               </div>
               <div class="er-schema-tooltip">
-                <div class="er-field pk">🔑 doc_ref <span class="ft">VARCHAR PK</span></div>
-                <div class="er-field edit-note">✏️ doc_name / corpus / section <span class="ft">VARCHAR</span></div>
-                <div class="er-field edit-note">✏️ author_or_tradition / language <span class="ft">VARCHAR</span>
+                <div class="er-field pk">🔑 id <span class="ft">INTEGER PK</span></div>
+                <div class="er-field">code <span class="ft">VARCHAR UNIQUE</span></div>
+                <div class="er-field">name <span class="ft">VARCHAR</span></div>
+                <div class="er-field">description <span class="ft">VARCHAR</span></div>
+              </div>
+              <div class="er-card-footer">
+                <span class="er-row-count" id="erCount_taxonomy_types">6 rows</span>
+                <span class="er-actions">
+                  <button class="er-btn" onclick="switchToTableInspector('taxonomy_types');event.stopPropagation()">🔍
+                    Inspect</button>
+                </span>
+              </div>
+            </div>
+            <div class="er-fk-arrow">↓ 1:N taxonomy_type_id</div>
+
+            <div class="er-table-card ods" data-layer="ods" data-table="taxonomy_terms"
+              onclick="switchToTableInspector('taxonomy_terms')"
+              title="T_ODS_TAXONOMY_TERMS — Canonical iconographic terms">
+              <div class="er-table-header ods">
+                <span class="er-table-name">taxonomy_terms</span>
+                <span class="er-table-tag">T_ODS_TAXONOMY_TERMS</span>
+              </div>
+              <div class="er-schema-tooltip">
+                <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
+                <div class="er-field fk">🔗 taxonomy_type_id → taxonomy_types.id <span class="ft">FK</span></div>
+                <div class="er-field fk">🔗 parent_id → taxonomy_terms.id <span class="ft">Self-FK</span></div>
+                <div class="er-field fk">🔗 dictionary_entry_id → dictionary_entries.id <span class="ft">FK</span></div>
+                <div class="er-field fk">🔗 place_id → places.id <span class="ft">FK</span></div>
+                <div class="er-field fk">🔗 period_id → periods_dynasties.id <span class="ft">FK</span></div>
+                <div class="er-field edit-note">✏️ canonical_name / iast_name <span class="ft">VARCHAR</span></div>
+                <div class="er-field">slug <span class="ft">VARCHAR</span></div>
+                <div class="er-field">description <span class="ft">VARCHAR</span></div>
+                <div class="er-field">is_active <span class="ft">BOOLEAN</span></div>
+                <div class="er-field">display_order <span class="ft">INTEGER</span></div>
+              </div>
+              <div class="er-card-footer">
+                <span class="er-row-count" id="erCount_taxonomy_terms">37 rows</span>
+                <span class="er-actions">
+                  <button class="er-btn" onclick="switchToTableInspector('taxonomy_terms');event.stopPropagation()">🔍
+                    Inspect</button>
+                </span>
+              </div>
+            </div>
+            <div class="er-fk-arrow">↓ 1:N term_id</div>
+
+            <div class="er-table-card ods" data-layer="ods" data-table="term_aliases"
+              onclick="switchToTableInspector('term_aliases')"
+              title="T_ODS_TERM_ALIASES — Multilingual spellings and transliterations">
+              <div class="er-table-header ods">
+                <span class="er-table-name">term_aliases</span>
+                <span class="er-table-tag">T_ODS_TERM_ALIASES</span>
+              </div>
+              <div class="er-schema-tooltip">
+                <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
+                <div class="er-field fk">🔗 term_id → taxonomy_terms.id <span class="ft">VARCHAR FK</span></div>
+                <div class="er-field edit-note">✏️ alias <span class="ft">VARCHAR</span></div>
+                <div class="er-field">alias_type <span class="ft">VARCHAR (spelling_variant…)</span></div>
+                <div class="er-field">is_searchable <span class="ft">BOOLEAN</span></div>
+              </div>
+              <div class="er-card-footer">
+                <span class="er-row-count" id="erCount_term_aliases">72 rows</span>
+                <span class="er-actions">
+                  <button class="er-btn" onclick="switchToTableInspector('term_aliases');event.stopPropagation()">🔍
+                    Inspect</button>
+                </span>
+              </div>
+            </div>
+
+            <!-- Reference tables (dictionary, places, periods, doc) -->
+            <div class="er-ref-group">
+              <div class="er-table-card ods compact" data-layer="ods" data-table="dictionary_entries"
+                onclick="openCrudForTable('dictionary')" title="T_ODS_DICTIONARY — IAST Sanskrit glossary">
+                <div class="er-table-header ods">
+                  <span class="er-table-name">dictionary_entries</span>
+                  <span class="er-table-tag">T_ODS_DICTIONARY</span>
                 </div>
-                <div class="er-field edit-note">✏️ applicability_to_iconography <span class="ft">CLOB</span></div>
+                <div class="er-schema-tooltip">
+                  <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
+                  <div class="er-field">slug / headword / iast_headword <span class="ft">VARCHAR</span></div>
+                  <div class="er-field edit-note">✏️ definition / etymology / extended_notes <span
+                      class="ft">CLOB</span>
+                  </div>
+                  <div class="er-field audit">🕐 created_at / updated_at | 👤 created_by / updated_by</div>
+                </div>
+                <div class="er-card-footer">
+                  <span class="er-row-count" id="erCount_dictionary_entries">6 rows</span>
+                  <span class="er-actions">
+                    <button class="er-btn" onclick="openCrudForTable('dictionary');event.stopPropagation()">✏️
+                      CRUD</button>
+                  </span>
+                </div>
+              </div>
+
+              <div class="er-table-card ods compact" data-layer="ods" data-table="places"
+                onclick="switchToTableInspector('places')" title="T_ODS_PLACES — Temple & geography registry">
+                <div class="er-table-header ods">
+                  <span class="er-table-name">places</span>
+                  <span class="er-table-tag">T_ODS_PLACES</span>
+                </div>
+                <div class="er-schema-tooltip">
+                  <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
+                  <div class="er-field">slug / name / native_name <span class="ft">VARCHAR</span></div>
+                  <div class="er-field">temple_name / deity_enshrined / tradition <span class="ft">VARCHAR</span></div>
+                  <div class="er-field">town_city / district / state / country <span class="ft">VARCHAR</span></div>
+                </div>
+                <div class="er-card-footer">
+                  <span class="er-row-count" id="erCount_places">3 rows</span>
+                  <span class="er-actions">
+                    <button class="er-btn" onclick="switchToTableInspector('places');event.stopPropagation()">🔍
+                      Inspect</button>
+                  </span>
+                </div>
+              </div>
+
+              <div class="er-table-card ods compact" data-layer="ods" data-table="periods_dynasties"
+                onclick="switchToTableInspector('periods_dynasties')" title="T_ODS_PERIODS — Dynastic periods">
+                <div class="er-table-header ods">
+                  <span class="er-table-name">periods_dynasties</span>
+                  <span class="er-table-tag">T_ODS_PERIODS</span>
+                </div>
+                <div class="er-schema-tooltip">
+                  <div class="er-field pk">🔑 id <span class="ft">INTEGER PK</span></div>
+                  <div class="er-field">name / dynasty_type / region <span class="ft">VARCHAR</span></div>
+                  <div class="er-field">time_span / description <span class="ft">VARCHAR</span></div>
+                </div>
+                <div class="er-card-footer">
+                  <span class="er-row-count" id="erCount_periods_dynasties">8 rows</span>
+                  <span class="er-actions">
+                    <button class="er-btn"
+                      onclick="switchToTableInspector('periods_dynasties');event.stopPropagation()">🔍 Inspect</button>
+                  </span>
+                </div>
+              </div>
+
+              <div class="er-table-card ods compact" data-layer="ods" data-table="doc_ref_catalog"
+                onclick="openCrudForTable('catalog')" title="T_ODS_DOC_CATALOG — Primary text sources">
+                <div class="er-table-header ods">
+                  <span class="er-table-name">doc_ref_catalog</span>
+                  <span class="er-table-tag">T_ODS_DOC_CATALOG</span>
+                </div>
+                <div class="er-schema-tooltip">
+                  <div class="er-field pk">🔑 doc_ref <span class="ft">VARCHAR PK</span></div>
+                  <div class="er-field edit-note">✏️ doc_name / corpus / section <span class="ft">VARCHAR</span></div>
+                  <div class="er-field edit-note">✏️ author_or_tradition / language <span class="ft">VARCHAR</span>
+                  </div>
+                  <div class="er-field edit-note">✏️ applicability_to_iconography <span class="ft">CLOB</span></div>
+                  <div class="er-field audit">🕐 created_at / updated_at | 👤 created_by / updated_by</div>
+                </div>
+                <div class="er-card-footer">
+                  <span class="er-row-count" id="erCount_doc_ref_catalog">5 rows</span>
+                  <span class="er-actions">
+                    <button class="er-btn" onclick="openCrudForTable('catalog');event.stopPropagation()">✏️
+                      CRUD</button>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- ── COLUMN 3: GOLD SYST ── -->
+          <div class="er-column er-col-syst">
+            <div class="er-col-header syst">🟡 Gold · T_SYST · System & DRM Layer</div>
+            <div class="er-col-desc">Internal system tables. Never exposed to scholars.</div>
+
+            <!-- users root -->
+            <div class="er-table-card syst" data-layer="syst" data-table="users"
+              onclick="switchToTableInspector('users')" title="T_SYST_USERS — Scholar & curator identity">
+              <div class="er-table-header syst">
+                <span class="er-table-name">users</span>
+                <span class="er-table-tag">T_SYST_USERS</span>
+              </div>
+              <div class="er-schema-tooltip">
+                <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
+                <div class="er-field">email <span class="ft">VARCHAR UNIQUE</span></div>
+                <div class="er-field">full_name <span class="ft">VARCHAR</span></div>
+                <div class="er-field">avatar_url <span class="ft">VARCHAR</span></div>
+                <div class="er-field">role <span class="ft">VARCHAR (admin/curator/scholar)</span></div>
+                <div class="er-field">google_sub <span class="ft">VARCHAR OAuth sub</span></div>
+                <div class="er-field audit">🕐 created_at / last_login_at</div>
+              </div>
+              <div class="er-card-footer">
+                <span class="er-row-count" id="erCount_users">5 rows</span>
+                <span class="er-actions">
+                  <button class="er-btn" onclick="switchToTableInspector('users');event.stopPropagation()">🔍
+                    Inspect</button>
+                </span>
+              </div>
+            </div>
+            <div class="er-fk-arrow syst">↓ 1:N user_id (to all below)</div>
+
+            <div class="er-table-card syst" data-layer="syst" data-table="user_subscriptions"
+              onclick="switchToTableInspector('user_subscriptions')" title="T_SYST_SUBSCRIPTIONS — Billing tiers">
+              <div class="er-table-header syst">
+                <span class="er-table-name">user_subscriptions</span>
+                <span class="er-table-tag">T_SYST_SUBSCRIPTIONS</span>
+              </div>
+              <div class="er-schema-tooltip">
+                <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
+                <div class="er-field fk">🔗 user_id → users.id <span class="ft">FK</span></div>
+                <div class="er-field">tier <span class="ft">VARCHAR (free/scholar/premium)</span></div>
+                <div class="er-field">status <span class="ft">VARCHAR</span></div>
+                <div class="er-field">billing_cycle / amount_inr <span class="ft">VARCHAR / DOUBLE</span></div>
+                <div class="er-field">last_payment_date / next_billing_date <span class="ft">TIMESTAMP</span></div>
+                <div class="er-field">payment_method <span class="ft">VARCHAR (gpay)</span></div>
+              </div>
+              <div class="er-card-footer">
+                <span class="er-row-count" id="erCount_user_subscriptions">0 rows</span>
+                <span class="er-actions">
+                  <button class="er-btn"
+                    onclick="switchToTableInspector('user_subscriptions');event.stopPropagation()">🔍
+                    Inspect</button>
+                </span>
+              </div>
+            </div>
+
+            <div class="er-table-card syst" data-layer="syst" data-table="user_downloads"
+              onclick="switchToTableInspector('user_downloads')" title="T_SYST_DOWNLOADS — 300 DPI license receipts">
+              <div class="er-table-header syst">
+                <span class="er-table-name">user_downloads</span>
+                <span class="er-table-tag">T_SYST_DOWNLOADS</span>
+              </div>
+              <div class="er-schema-tooltip">
+                <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
+                <div class="er-field fk">🔗 user_id → users.id <span class="ft">FK</span></div>
+                <div class="er-field fk">🔗 study_id → studies.id <span class="ft">FK</span></div>
+                <div class="er-field fk">🔗 slide_id → study_slides.id <span class="ft">FK</span></div>
+                <div class="er-field">license_ref / resolution <span class="ft">VARCHAR</span></div>
+                <div class="er-field">ip_address <span class="ft">VARCHAR</span></div>
+                <div class="er-field audit">🕐 downloaded_at <span class="ft">TIMESTAMP</span></div>
+              </div>
+              <div class="er-card-footer">
+                <span class="er-row-count" id="erCount_user_downloads">0 rows</span>
+                <span class="er-actions">
+                  <button class="er-btn" onclick="switchToTableInspector('user_downloads');event.stopPropagation()">🔍
+                    Inspect</button>
+                </span>
+              </div>
+            </div>
+
+            <div class="er-table-card syst" data-layer="syst" data-table="premium_download_requests"
+              onclick="switchToTableInspector('premium_download_requests')"
+              title="T_SYST_DOWNLOAD_REQ — GPay verification records">
+              <div class="er-table-header syst">
+                <span class="er-table-name">premium_download_requests</span>
+                <span class="er-table-tag">T_SYST_DOWNLOAD_REQ</span>
+              </div>
+              <div class="er-schema-tooltip">
+                <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
+                <div class="er-field fk">🔗 study_id → studies.id <span class="ft">FK</span></div>
+                <div class="er-field">user_email / payment_method <span class="ft">VARCHAR</span></div>
+                <div class="er-field">transaction_ref / amount_inr <span class="ft">VARCHAR / DOUBLE</span></div>
+                <div class="er-field">status <span class="ft">VARCHAR (pending/approved)</span></div>
+                <div class="er-field audit">🕐 created_at <span class="ft">TIMESTAMP</span></div>
+              </div>
+              <div class="er-card-footer">
+                <span class="er-row-count" id="erCount_premium_download_requests">0 rows</span>
+                <span class="er-actions">
+                  <button class="er-btn"
+                    onclick="switchToTableInspector('premium_download_requests');event.stopPropagation()">🔍
+                    Inspect</button>
+                </span>
+              </div>
+            </div>
+
+            <div class="er-table-card syst" data-layer="syst" data-table="user_behavior_logs"
+              onclick="switchToTableInspector('user_behavior_logs')" title="T_SYST_BEHAVIOR_LOG — Query event stream">
+              <div class="er-table-header syst">
+                <span class="er-table-name">user_behavior_logs</span>
+                <span class="er-table-tag">T_SYST_BEHAVIOR_LOG</span>
+              </div>
+              <div class="er-schema-tooltip">
+                <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
+                <div class="er-field fk">🔗 user_id → users.id <span class="ft">FK nullable</span></div>
+                <div class="er-field">session_id / event_type <span class="ft">VARCHAR</span></div>
+                <div class="er-field">resource_id / event_payload_json <span class="ft">VARCHAR</span></div>
+                <div class="er-field">ip_address / user_agent <span class="ft">VARCHAR</span></div>
+                <div class="er-field audit">🕐 created_at <span class="ft">TIMESTAMP</span></div>
+              </div>
+              <div class="er-card-footer">
+                <span class="er-row-count" id="erCount_user_behavior_logs">55 rows</span>
+                <span class="er-actions">
+                  <button class="er-btn"
+                    onclick="switchToTableInspector('user_behavior_logs');event.stopPropagation()">🔍
+                    Inspect</button>
+                </span>
+              </div>
+            </div>
+
+            <div class="er-table-card syst" data-layer="syst" data-table="audit_logs"
+              onclick="switchToTableInspector('audit_logs')" title="T_SYST_AUDIT_LOG — Complete CRUD mutation log">
+              <div class="er-table-header syst">
+                <span class="er-table-name">audit_logs</span>
+                <span class="er-table-tag">T_SYST_AUDIT_LOG</span>
+              </div>
+              <div class="er-schema-tooltip">
+                <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
+                <div class="er-field">table_name / record_id <span class="ft">VARCHAR</span></div>
+                <div class="er-field">action <span class="ft">VARCHAR (CREATE/UPDATE/DELETE)</span></div>
+                <div class="er-field">user_email / user_role <span class="ft">VARCHAR</span></div>
+                <div class="er-field">changed_fields_json / previous_state_json / new_state_json <span
+                    class="ft">CLOB</span></div>
+                <div class="er-field audit">🕐 timestamp <span class="ft">TIMESTAMP</span></div>
+              </div>
+              <div class="er-card-footer">
+                <span class="er-row-count" id="erCount_audit_logs">— rows</span>
+                <span class="er-actions">
+                  <button class="er-btn" onclick="switchToTableInspector('audit_logs');event.stopPropagation()">🔍
+                    Inspect</button>
+                </span>
+              </div>
+            </div>
+
+            <div class="er-table-card syst" data-layer="syst" data-table="param_config"
+              onclick="openCrudForTable('param_config')" title="T_SYST_PARAM_CONFIG — Application Configuration">
+              <div class="er-table-header syst">
+                <span class="er-table-name">param_config</span>
+                <span class="er-table-tag">T_SYST_PARAM_CONFIG</span>
+              </div>
+              <div class="er-schema-tooltip">
+                <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
+                <div class="er-field edit-note">✏️ param_group / param_key <span class="ft">VARCHAR</span></div>
+                <div class="er-field edit-note">✏️ param_value <span class="ft">VARCHAR</span></div>
+                <div class="er-field">value_type / description <span class="ft">VARCHAR</span></div>
+                <div class="er-field">is_sensitive <span class="ft">BOOLEAN</span></div>
                 <div class="er-field audit">🕐 created_at / updated_at | 👤 created_by / updated_by</div>
               </div>
               <div class="er-card-footer">
-                <span class="er-row-count" id="erCount_doc_ref_catalog">5 rows</span>
+                <span class="er-row-count" id="erCount_param_config">31 rows</span>
                 <span class="er-actions">
-                  <button class="er-btn" onclick="openCrudForTable('catalog');event.stopPropagation()">✏️
+                  <button class="er-btn" onclick="openCrudForTable('param_config');event.stopPropagation()">✏️
                     CRUD</button>
+                  <button class="er-btn" onclick="switchToTableInspector('param_config');event.stopPropagation()">🔍
+                    Inspect</button>
                 </span>
               </div>
             </div>
-          </div>
 
+
+          </div>
+        </div><!-- /er-canvas -->
+
+        <!-- Data Flow Summary -->
+        <div class="er-flow-summary">
+          <div class="er-flow-item raw">🟤 INGEST: Curator uploads plate → Windows OCR → <code>T_RAW_STUDY_SLIDES</code>
+            → <code>T_RAW_SLIDE_OCR</code></div>
+          <div class="er-flow-item ods">🔵 CURATE: AI proposes terms → Curator approves →
+            <code>T_ODS_TAXONOMY_TERMS</code> + <code>T_ODS_STUDY_TAXONOMY</code>
+          </div>
+          <div class="er-flow-item ods">🔵 PUBLISH: Curator sets status="published" on <code>T_ODS_STUDIES</code> →
+            Scholar can read</div>
+          <div class="er-flow-item syst">🟡 SYSTEM: Scholar pays GPay → <code>T_SYST_DOWNLOAD_REQ</code> → Admin
+            approves → <code>T_SYST_DOWNLOADS</code></div>
+          <div class="er-flow-item syst">🟡 AUDIT: Every CRUD mutation → <code>T_SYST_AUDIT_LOG</code> with full diff
+            snapshot</div>
         </div>
 
-        <!-- ── COLUMN 3: GOLD SYST ── -->
-        <div class="er-column er-col-syst">
-          <div class="er-col-header syst">🟡 Gold · T_SYST · System & DRM Layer</div>
-          <div class="er-col-desc">Internal system tables. Never exposed to scholars.</div>
-
-          <!-- users root -->
-          <div class="er-table-card syst" data-layer="syst" data-table="users" onclick="switchToTableInspector('users')"
-            title="T_SYST_USERS — Scholar & curator identity">
-            <div class="er-table-header syst">
-              <span class="er-table-name">users</span>
-              <span class="er-table-tag">T_SYST_USERS</span>
-            </div>
-            <div class="er-schema-tooltip">
-              <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
-              <div class="er-field">email <span class="ft">VARCHAR UNIQUE</span></div>
-              <div class="er-field">full_name <span class="ft">VARCHAR</span></div>
-              <div class="er-field">avatar_url <span class="ft">VARCHAR</span></div>
-              <div class="er-field">role <span class="ft">VARCHAR (admin/curator/scholar)</span></div>
-              <div class="er-field">google_sub <span class="ft">VARCHAR OAuth sub</span></div>
-              <div class="er-field audit">🕐 created_at / last_login_at</div>
-            </div>
-            <div class="er-card-footer">
-              <span class="er-row-count" id="erCount_users">5 rows</span>
-              <span class="er-actions">
-                <button class="er-btn" onclick="switchToTableInspector('users');event.stopPropagation()">🔍
-                  Inspect</button>
-              </span>
-            </div>
-          </div>
-          <div class="er-fk-arrow syst">↓ 1:N user_id (to all below)</div>
-
-          <div class="er-table-card syst" data-layer="syst" data-table="user_subscriptions"
-            onclick="switchToTableInspector('user_subscriptions')" title="T_SYST_SUBSCRIPTIONS — Billing tiers">
-            <div class="er-table-header syst">
-              <span class="er-table-name">user_subscriptions</span>
-              <span class="er-table-tag">T_SYST_SUBSCRIPTIONS</span>
-            </div>
-            <div class="er-schema-tooltip">
-              <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
-              <div class="er-field fk">🔗 user_id → users.id <span class="ft">FK</span></div>
-              <div class="er-field">tier <span class="ft">VARCHAR (free/scholar/premium)</span></div>
-              <div class="er-field">status <span class="ft">VARCHAR</span></div>
-              <div class="er-field">billing_cycle / amount_inr <span class="ft">VARCHAR / DOUBLE</span></div>
-              <div class="er-field">last_payment_date / next_billing_date <span class="ft">TIMESTAMP</span></div>
-              <div class="er-field">payment_method <span class="ft">VARCHAR (gpay)</span></div>
-            </div>
-            <div class="er-card-footer">
-              <span class="er-row-count" id="erCount_user_subscriptions">0 rows</span>
-              <span class="er-actions">
-                <button class="er-btn" onclick="switchToTableInspector('user_subscriptions');event.stopPropagation()">🔍
-                  Inspect</button>
-              </span>
-            </div>
-          </div>
-
-          <div class="er-table-card syst" data-layer="syst" data-table="user_downloads"
-            onclick="switchToTableInspector('user_downloads')" title="T_SYST_DOWNLOADS — 300 DPI license receipts">
-            <div class="er-table-header syst">
-              <span class="er-table-name">user_downloads</span>
-              <span class="er-table-tag">T_SYST_DOWNLOADS</span>
-            </div>
-            <div class="er-schema-tooltip">
-              <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
-              <div class="er-field fk">🔗 user_id → users.id <span class="ft">FK</span></div>
-              <div class="er-field fk">🔗 study_id → studies.id <span class="ft">FK</span></div>
-              <div class="er-field fk">🔗 slide_id → study_slides.id <span class="ft">FK</span></div>
-              <div class="er-field">license_ref / resolution <span class="ft">VARCHAR</span></div>
-              <div class="er-field">ip_address <span class="ft">VARCHAR</span></div>
-              <div class="er-field audit">🕐 downloaded_at <span class="ft">TIMESTAMP</span></div>
-            </div>
-            <div class="er-card-footer">
-              <span class="er-row-count" id="erCount_user_downloads">0 rows</span>
-              <span class="er-actions">
-                <button class="er-btn" onclick="switchToTableInspector('user_downloads');event.stopPropagation()">🔍
-                  Inspect</button>
-              </span>
-            </div>
-          </div>
-
-          <div class="er-table-card syst" data-layer="syst" data-table="premium_download_requests"
-            onclick="switchToTableInspector('premium_download_requests')"
-            title="T_SYST_DOWNLOAD_REQ — GPay verification records">
-            <div class="er-table-header syst">
-              <span class="er-table-name">premium_download_requests</span>
-              <span class="er-table-tag">T_SYST_DOWNLOAD_REQ</span>
-            </div>
-            <div class="er-schema-tooltip">
-              <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
-              <div class="er-field fk">🔗 study_id → studies.id <span class="ft">FK</span></div>
-              <div class="er-field">user_email / payment_method <span class="ft">VARCHAR</span></div>
-              <div class="er-field">transaction_ref / amount_inr <span class="ft">VARCHAR / DOUBLE</span></div>
-              <div class="er-field">status <span class="ft">VARCHAR (pending/approved)</span></div>
-              <div class="er-field audit">🕐 created_at <span class="ft">TIMESTAMP</span></div>
-            </div>
-            <div class="er-card-footer">
-              <span class="er-row-count" id="erCount_premium_download_requests">0 rows</span>
-              <span class="er-actions">
-                <button class="er-btn"
-                  onclick="switchToTableInspector('premium_download_requests');event.stopPropagation()">🔍
-                  Inspect</button>
-              </span>
-            </div>
-          </div>
-
-          <div class="er-table-card syst" data-layer="syst" data-table="user_behavior_logs"
-            onclick="switchToTableInspector('user_behavior_logs')" title="T_SYST_BEHAVIOR_LOG — Query event stream">
-            <div class="er-table-header syst">
-              <span class="er-table-name">user_behavior_logs</span>
-              <span class="er-table-tag">T_SYST_BEHAVIOR_LOG</span>
-            </div>
-            <div class="er-schema-tooltip">
-              <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
-              <div class="er-field fk">🔗 user_id → users.id <span class="ft">FK nullable</span></div>
-              <div class="er-field">session_id / event_type <span class="ft">VARCHAR</span></div>
-              <div class="er-field">resource_id / event_payload_json <span class="ft">VARCHAR</span></div>
-              <div class="er-field">ip_address / user_agent <span class="ft">VARCHAR</span></div>
-              <div class="er-field audit">🕐 created_at <span class="ft">TIMESTAMP</span></div>
-            </div>
-            <div class="er-card-footer">
-              <span class="er-row-count" id="erCount_user_behavior_logs">55 rows</span>
-              <span class="er-actions">
-                <button class="er-btn" onclick="switchToTableInspector('user_behavior_logs');event.stopPropagation()">🔍
-                  Inspect</button>
-              </span>
-            </div>
-          </div>
-
-          <div class="er-table-card syst" data-layer="syst" data-table="audit_logs"
-            onclick="switchToTableInspector('audit_logs')" title="T_SYST_AUDIT_LOG — Complete CRUD mutation log">
-            <div class="er-table-header syst">
-              <span class="er-table-name">audit_logs</span>
-              <span class="er-table-tag">T_SYST_AUDIT_LOG</span>
-            </div>
-            <div class="er-schema-tooltip">
-              <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
-              <div class="er-field">table_name / record_id <span class="ft">VARCHAR</span></div>
-              <div class="er-field">action <span class="ft">VARCHAR (CREATE/UPDATE/DELETE)</span></div>
-              <div class="er-field">user_email / user_role <span class="ft">VARCHAR</span></div>
-              <div class="er-field">changed_fields_json / previous_state_json / new_state_json <span
-                  class="ft">CLOB</span></div>
-              <div class="er-field audit">🕐 timestamp <span class="ft">TIMESTAMP</span></div>
-            </div>
-            <div class="er-card-footer">
-              <span class="er-row-count" id="erCount_audit_logs">— rows</span>
-              <span class="er-actions">
-                <button class="er-btn" onclick="switchToTableInspector('audit_logs');event.stopPropagation()">🔍
-                  Inspect</button>
-              </span>
-            </div>
-          </div>
-
-          <div class="er-table-card syst" data-layer="syst" data-table="param_config"
-            onclick="openCrudForTable('param_config')" title="T_SYST_PARAM_CONFIG — Application Configuration">
-            <div class="er-table-header syst">
-              <span class="er-table-name">param_config</span>
-              <span class="er-table-tag">T_SYST_PARAM_CONFIG</span>
-            </div>
-            <div class="er-schema-tooltip">
-              <div class="er-field pk">🔑 id <span class="ft">VARCHAR PK</span></div>
-              <div class="er-field edit-note">✏️ param_group / param_key <span class="ft">VARCHAR</span></div>
-              <div class="er-field edit-note">✏️ param_value <span class="ft">VARCHAR</span></div>
-              <div class="er-field">value_type / description <span class="ft">VARCHAR</span></div>
-              <div class="er-field">is_sensitive <span class="ft">BOOLEAN</span></div>
-              <div class="er-field audit">🕐 created_at / updated_at | 👤 created_by / updated_by</div>
-            </div>
-            <div class="er-card-footer">
-              <span class="er-row-count" id="erCount_param_config">31 rows</span>
-              <span class="er-actions">
-                <button class="er-btn" onclick="openCrudForTable('param_config');event.stopPropagation()">✏️
-                  CRUD</button>
-                <button class="er-btn" onclick="switchToTableInspector('param_config');event.stopPropagation()">🔍
-                  Inspect</button>
-              </span>
-            </div>
-          </div>
-
-
-        </div>
-      </div><!-- /er-canvas -->
-
-      <!-- Data Flow Summary -->
-      <div class="er-flow-summary">
-        <div class="er-flow-item raw">🟤 INGEST: Curator uploads plate → Windows OCR → <code>T_RAW_STUDY_SLIDES</code>
-          → <code>T_RAW_SLIDE_OCR</code></div>
-        <div class="er-flow-item ods">🔵 CURATE: AI proposes terms → Curator approves →
-          <code>T_ODS_TAXONOMY_TERMS</code> + <code>T_ODS_STUDY_TAXONOMY</code>
-        </div>
-        <div class="er-flow-item ods">🔵 PUBLISH: Curator sets status="published" on <code>T_ODS_STUDIES</code> →
-          Scholar can read</div>
-        <div class="er-flow-item syst">🟡 SYSTEM: Scholar pays GPay → <code>T_SYST_DOWNLOAD_REQ</code> → Admin
-          approves → <code>T_SYST_DOWNLOADS</code></div>
-        <div class="er-flow-item syst">🟡 AUDIT: Every CRUD mutation → <code>T_SYST_AUDIT_LOG</code> with full diff
-          snapshot</div>
       </div>
 
-    </div>
 
-
-    <!-- ================================================================ -->
-    <!-- VIEW 2: SELF-LEARNING KNOWLEDGE LOOP VISUALIZER                  -->
-    <!-- ================================================================ -->
-    <div id="dataStudioLoopView" class="studio-view-pane" style="display:none;">
-      <div
-        style="background:var(--paper-card); border:1px solid var(--line); border-radius:var(--radius-lg); padding:22px; margin-bottom:24px; box-shadow:var(--shadow-sm);">
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-          <div class="pulse-dot"></div>
-          <h3 style="font-family:var(--font-serif); font-size:20px; margin:0; color:var(--ink);">How Uncataloged
-            Mudras, Asanas &amp;
-            Ayudhas Are Auto-Learned</h3>
-        </div>
-        <p style="color:var(--muted); font-size:13.5px; line-height:1.6; margin:0 0 18px 0;">
-          When an author uploads an iconographic plate describing a gesture (like <em>Shikhara Mudra</em>), the system
-          does not fail or require code modifications. It traverses a 7-stage autonomous learning pipeline:
-        </p>
-
-        <div class="knowledge-loop-flow">
-          <div class="loop-step-card">
-            <div class="loop-step-num">1</div>
-            <div class="loop-step-title">Plate Ingestion</div>
-            <div class="loop-step-desc">High-resolution plate uploaded and stored permanently under
-              <code>/storage/images/{slug}/</code>.
-            </div>
-            <span class="loop-step-badge">Filesystem Storage</span>
-          </div>
-
-          <div class="loop-step-card">
-            <div class="loop-step-num">2</div>
-            <div class="loop-step-title">Windows Media OCR</div>
-            <div class="loop-step-desc">Native Windows OCR extracts uncompressed token streams with bounding
-              coordinates and confidence.</div>
-            <span class="loop-step-badge">WinRT Layer 1</span>
-          </div>
-
-          <div class="loop-step-card">
-            <div class="loop-step-num">3</div>
-            <div class="loop-step-title">Sanskrit IAST Repair</div>
-            <div class="loop-step-desc">Deterministic correction rules repair corrupted diacritics (e.g.
-              <code>GaQeSa &rarr; Gaṇeśa</code>, <code>ÄsTna &rarr; Āsīna</code>).
-            </div>
-            <span class="loop-step-badge">IAST Normalizer</span>
-          </div>
-
-          <div class="loop-step-card">
-            <div class="loop-step-num">4</div>
-            <div class="loop-step-title">Shastra Pattern NER</div>
-            <div class="loop-step-desc">Entity regex detects gestures (<code>... mudrā</code>,
-              <code>... hasta</code>), postures (<code>... āsana</code>) and mounts (<code>... vāhana</code>).
-            </div>
-            <span class="loop-step-badge">Autonomous Discovery</span>
-          </div>
-
-          <div class="loop-step-card">
-            <div class="loop-step-num">5</div>
-            <div class="loop-step-title">Curator Verification</div>
-            <div class="loop-step-desc">Curator inspects extracted proposals, confidence scores, and preview of tables
-              to be impacted in OCR Studio.</div>
-            <span class="loop-step-badge">Human-In-The-Loop</span>
-          </div>
-
-          <div class="loop-step-card">
-            <div class="loop-step-num">6</div>
-            <div class="loop-step-title">Atomic DuckDB Upsert</div>
-            <div class="loop-step-desc">Single transaction writes to <code>taxonomy_terms</code>, creates aliases in
-              <code>term_aliases</code>, links <code>study_taxonomy_mappings</code>, and logs to
-              <code>slide_ocr_data</code>.
-            </div>
-            <span class="loop-step-badge">ACID Multi-Table Commit</span>
-          </div>
-
-          <div class="loop-step-card">
-            <div class="loop-step-num">7</div>
-            <div class="loop-step-title">Instant Search Auto-Focus</div>
-            <div class="loop-step-desc">Queries for <em>"mudra"</em>, <em>"hasta"</em>, or <em>"shikhara"</em>
-              immediately re-rank the monograph and auto-focus on the exact plate.</div>
-            <span class="loop-step-badge">Zero Redeployment</span>
-          </div>
-        </div>
-
-        <!-- Interactive Concept Simulator -->
+      <!-- ================================================================ -->
+      <!-- VIEW 2: SELF-LEARNING KNOWLEDGE LOOP VISUALIZER                  -->
+      <!-- ================================================================ -->
+      <div id="dataStudioLoopView" class="studio-view-pane" style="display:none;">
         <div
-          style="background:var(--paper-sunken); border:1px solid var(--line); border-radius:var(--radius-md); padding:16px;">
-          <div style="font-weight:700; font-size:13.5px; margin-bottom:8px; color:var(--ink);">Try Query Expansion
-            &amp; Alias Traversal Live:</div>
-          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
-            <button class="sample-btn" type="button" onclick="testSimulatorQuery('mudra')">Test 'mudra'</button>
-            <button class="sample-btn" type="button" onclick="testSimulatorQuery('shikhara')">Test 'shikhara'</button>
-            <button class="sample-btn" type="button" onclick="testSimulatorQuery('seated')">Test 'seated'</button>
-            <button class="sample-btn" type="button" onclick="testSimulatorQuery('mooshika')">Test 'mooshika'</button>
-            <button class="sample-btn" type="button" onclick="testSimulatorQuery('chola')">Test 'chola'</button>
+          style="background:var(--paper-card); border:1px solid var(--line); border-radius:var(--radius-lg); padding:22px; margin-bottom:24px; box-shadow:var(--shadow-sm);">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+            <div class="pulse-dot"></div>
+            <h3 style="font-family:var(--font-serif); font-size:20px; margin:0; color:var(--ink);">How Uncataloged
+              Mudras, Asanas &amp;
+              Ayudhas Are Auto-Learned</h3>
           </div>
-          <div id="simulatorResultBox"
-            style="background:var(--paper-sunken); border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px; font-family:monospace; font-size:12px; color:var(--ink); min-height:48px;">
-            Click any sample query above to simulate concept expansion, alias resolution, and target carousel slide
-            focus.
-          </div>
-        </div>
-      </div>
-    </div>
+          <p style="color:var(--muted); font-size:13.5px; line-height:1.6; margin:0 0 18px 0;">
+            When an author uploads an iconographic plate describing a gesture (like <em>Shikhara Mudra</em>), the system
+            does not fail or require code modifications. It traverses a 7-stage autonomous learning pipeline:
+          </p>
 
-    <!-- ================================================================ -->
-    <!-- VIEW 3: RAW DATABASE TABLE INSPECTOR & USER ROLE MANAGER         -->
-    <!-- ================================================================ -->
-    <div id="dataStudioTableView" class="studio-view-pane" style="display:none;">
-      <!-- Admin Auth Gate (Displayed when unauthenticated or non-admin) -->
-      <div id="adminStudioAuthGate" class="auth-gate-box" style="display:none;">
-        <div class="auth-gate-icon"><img src="assets/icons/kavacha-shield.svg" class="fmm-icon"
-            style="width:48px; height:48px;" alt="Shield" /></div>
-        <h3 id="adminGateTitle">System Administrator Access Required</h3>
-        <p id="adminGateDesc">Browsing underlying database schema, user session tables, behavioral telemetry, and
-          download licenses requires an authenticated Administrator session.</p>
-        <div style="display:flex; justify-content:center; gap:12px; margin-top:16px; flex-wrap:wrap;">
-          <button id="adminGateActionBtn" class="btn-primary" onclick="openAuthModal()" style="padding:10px 20px;">
-            <span><img src="assets/icons/kunchika-key.svg" class="fmm-icon" alt="" /></span> Sign in as Administrator
-          </button>
-          <button class="btn-secondary" onclick="executeDemoLogin('admin')" style="padding:10px 20px;">
-            <span><img src="assets/icons/chola-seal.svg" class="fmm-icon" alt="" /></span> Quick Super Admin Access
-            (Demo)
-          </button>
-        </div>
-      </div>
-
-      <div id="adminStudioContent">
-        <!-- Medallion Architecture Layer Tabs for Table Inspector -->
-        <div class="data-studio-category-bar">
-          <div class="category-tabs-group" id="tableCategoryFilter">
-            <button class="cat-pill active" data-cat="all"><img src="assets/icons/kalasha-pot.svg" class="fmm-icon"
-                alt="" /> All Tables (<span id="catCountAll">21</span>)</button>
-            <button class="cat-pill medal-raw" data-cat="raw"><span class="layer-mini-tag raw">RAW</span> 🟤 Bronze
-              RAW (<span id="catCountRaw">3</span>)</button>
-            <button class="cat-pill medal-ods" data-cat="ods"><span class="layer-mini-tag ods">ODS</span> 🔵 Silver
-              ODS (<span id="catCountOds">11</span>)</button>
-            <button class="cat-pill medal-syst" data-cat="syst"><span class="layer-mini-tag syst">SYST</span> 🟡 Gold
-              SYST (<span id="catCountSyst">7</span>)</button>
-          </div>
-        </div>
-
-        <!-- Table Selection Grid (Organized cleanly) -->
-        <div class="table-selector-grid" id="tableNavStrip">
-          <!-- Dynamically populated table cards/buttons -->
-        </div>
-
-        <!-- Super Admin User Role Manager Bar -->
-        <div id="adminUserRoleManagerBox" class="admin-user-manager-box">
-          <div class="user-mgr-header">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <img src="assets/icons/chola-seal.svg" class="fmm-icon" style="width:24px; height:24px;"
-                alt="Super Admin" />
-              <div>
-                <strong style="font-size:14px;">Super Admin: User Role &amp; Studio Access Manager</strong>
-                <div style="font-size:12px; color:var(--muted);">Administrators access both studios; Curators access
-                  Visual OCR Studio only; Scholars have free access to Study 001.</div>
+          <div class="knowledge-loop-flow">
+            <div class="loop-step-card">
+              <div class="loop-step-num">1</div>
+              <div class="loop-step-title">Plate Ingestion</div>
+              <div class="loop-step-desc">High-resolution plate uploaded and stored permanently under
+                <code>/storage/images/{slug}/</code>.
               </div>
+              <span class="loop-step-badge">Filesystem Storage</span>
             </div>
-            <span class="badge" style="background:var(--bronze-light); color:var(--bronze); font-weight:700;">Super
-              Admin Mode</span>
+
+            <div class="loop-step-card">
+              <div class="loop-step-num">2</div>
+              <div class="loop-step-title">Windows Media OCR</div>
+              <div class="loop-step-desc">Native Windows OCR extracts uncompressed token streams with bounding
+                coordinates and confidence.</div>
+              <span class="loop-step-badge">WinRT Layer 1</span>
+            </div>
+
+            <div class="loop-step-card">
+              <div class="loop-step-num">3</div>
+              <div class="loop-step-title">Sanskrit IAST Repair</div>
+              <div class="loop-step-desc">Deterministic correction rules repair corrupted diacritics (e.g.
+                <code>GaQeSa &rarr; Gaṇeśa</code>, <code>ÄsTna &rarr; Āsīna</code>).
+              </div>
+              <span class="loop-step-badge">IAST Normalizer</span>
+            </div>
+
+            <div class="loop-step-card">
+              <div class="loop-step-num">4</div>
+              <div class="loop-step-title">Shastra Pattern NER</div>
+              <div class="loop-step-desc">Entity regex detects gestures (<code>... mudrā</code>,
+                <code>... hasta</code>), postures (<code>... āsana</code>) and mounts (<code>... vāhana</code>).
+              </div>
+              <span class="loop-step-badge">Autonomous Discovery</span>
+            </div>
+
+            <div class="loop-step-card">
+              <div class="loop-step-num">5</div>
+              <div class="loop-step-title">Curator Verification</div>
+              <div class="loop-step-desc">Curator inspects extracted proposals, confidence scores, and preview of tables
+                to be impacted in OCR Studio.</div>
+              <span class="loop-step-badge">Human-In-The-Loop</span>
+            </div>
+
+            <div class="loop-step-card">
+              <div class="loop-step-num">6</div>
+              <div class="loop-step-title">Atomic DuckDB Upsert</div>
+              <div class="loop-step-desc">Single transaction writes to <code>taxonomy_terms</code>, creates aliases in
+                <code>term_aliases</code>, links <code>study_taxonomy_mappings</code>, and logs to
+                <code>slide_ocr_data</code>.
+              </div>
+              <span class="loop-step-badge">ACID Multi-Table Commit</span>
+            </div>
+
+            <div class="loop-step-card">
+              <div class="loop-step-num">7</div>
+              <div class="loop-step-title">Instant Search Auto-Focus</div>
+              <div class="loop-step-desc">Queries for <em>"mudra"</em>, <em>"hasta"</em>, or <em>"shikhara"</em>
+                immediately re-rank the monograph and auto-focus on the exact plate.</div>
+              <span class="loop-step-badge">Zero Redeployment</span>
+            </div>
           </div>
-          <div class="user-mgr-form" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-            <input type="email" id="assignUserEmail" placeholder="Target user email (e.g. curator.colleague@gmail.com)"
-              class="search-input"
-              style="flex:2; min-width:240px; padding:8px 12px; font-size:13px; border:1px solid var(--line);">
-            <select id="assignUserRole" class="search-input"
-              style="flex:1.5; min-width:220px; padding:8px 12px; font-size:12.5px; border:1px solid var(--line); background:var(--paper-sunken); color:var(--ink);">
-              <option value="curator">Curator (Visual OCR Studio Only)</option>
-              <option value="admin">Administrator (Both Studios + Role Manager)</option>
-              <option value="scholar">Scholar (Public / Free 1 Study)</option>
-            </select>
-            <button class="btn-primary" onclick="executeAssignRole()"
-              style="padding:8px 18px; font-size:12.5px; white-space:nowrap;">
-              <span><img src="assets/icons/pramana-check.svg" class="fmm-icon" alt="" /></span> Grant / Update Role
+
+          <!-- Interactive Concept Simulator -->
+          <div
+            style="background:var(--paper-sunken); border:1px solid var(--line); border-radius:var(--radius-md); padding:16px;">
+            <div style="font-weight:700; font-size:13.5px; margin-bottom:8px; color:var(--ink);">Try Query Expansion
+              &amp; Alias Traversal Live:</div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+              <button class="sample-btn" type="button" onclick="testSimulatorQuery('mudra')">Test 'mudra'</button>
+              <button class="sample-btn" type="button" onclick="testSimulatorQuery('shikhara')">Test 'shikhara'</button>
+              <button class="sample-btn" type="button" onclick="testSimulatorQuery('seated')">Test 'seated'</button>
+              <button class="sample-btn" type="button" onclick="testSimulatorQuery('mooshika')">Test 'mooshika'</button>
+              <button class="sample-btn" type="button" onclick="testSimulatorQuery('chola')">Test 'chola'</button>
+            </div>
+            <div id="simulatorResultBox"
+              style="background:var(--paper-sunken); border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px; font-family:monospace; font-size:12px; color:var(--ink); min-height:48px;">
+              Click any sample query above to simulate concept expansion, alias resolution, and target carousel slide
+              focus.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================ -->
+      <!-- VIEW 3: RAW DATABASE TABLE INSPECTOR & USER ROLE MANAGER         -->
+      <!-- ================================================================ -->
+      <div id="dataStudioTableView" class="studio-view-pane" style="display:none;">
+        <!-- Admin Auth Gate (Displayed when unauthenticated or non-admin) -->
+        <div id="adminStudioAuthGate" class="auth-gate-box" style="display:none;">
+          <div class="auth-gate-icon"><img src="assets/icons/kavacha-shield.svg" class="fmm-icon"
+              style="width:48px; height:48px;" alt="Shield" /></div>
+          <h3 id="adminGateTitle">System Administrator Access Required</h3>
+          <p id="adminGateDesc">Browsing underlying database schema, user session tables, behavioral telemetry, and
+            download licenses requires an authenticated Administrator session.</p>
+          <div style="display:flex; justify-content:center; gap:12px; margin-top:16px; flex-wrap:wrap;">
+            <button id="adminGateActionBtn" class="btn-primary" onclick="openAuthModal()" style="padding:10px 20px;">
+              <span><img src="assets/icons/kunchika-key.svg" class="fmm-icon" alt="" /></span> Sign in as Administrator
+            </button>
+            <button class="btn-secondary" onclick="executeDemoLogin('admin')" style="padding:10px 20px;">
+              <span><img src="assets/icons/chola-seal.svg" class="fmm-icon" alt="" /></span> Quick Super Admin Access
+              (Demo)
             </button>
           </div>
         </div>
 
-        <!-- Data Table Display -->
-        <div class="data-table-container">
-          <!-- Compact Executive Medallion Table Header -->
-          <div class="inspector-table-hero" id="tableInspectorHero">
-            <div class="inspector-hero-left">
-              <div class="inspector-hero-top-row">
-                <span id="inspectorLayerBadge" class="layer-mini-tag ods">🔵 SILVER ODS</span>
-                <span id="inspectorRowCountBadge" class="hero-row-badge">7 rows</span>
-                <h3 id="currentTableNameHeading" class="hero-table-title">T_ODS_STUDIES</h3>
-                <code id="currentTableRawName" class="hero-raw-code">studies</code>
-              </div>
-              <div id="currentTableDesc" class="hero-table-desc">Core research monographs, access tiers &amp;
-                publication metadata</div>
+        <div id="adminStudioContent">
+          <!-- Medallion Architecture Layer Tabs for Table Inspector -->
+          <div class="data-studio-category-bar">
+            <div class="category-tabs-group" id="tableCategoryFilter">
+              <button class="cat-pill active" data-cat="all"><img src="assets/icons/kalasha-pot.svg" class="fmm-icon"
+                  alt="" /> All Tables (<span id="catCountAll">21</span>)</button>
+              <button class="cat-pill medal-raw" data-cat="raw"><span class="layer-mini-tag raw">RAW</span> 🟤 Bronze
+                RAW (<span id="catCountRaw">3</span>)</button>
+              <button class="cat-pill medal-ods" data-cat="ods"><span class="layer-mini-tag ods">ODS</span> 🔵 Silver
+                ODS (<span id="catCountOds">11</span>)</button>
+              <button class="cat-pill medal-syst" data-cat="syst"><span class="layer-mini-tag syst">SYST</span> 🟡 Gold
+                SYST (<span id="catCountSyst">7</span>)</button>
             </div>
-            <div class="inspector-hero-right">
-              <button class="btn-secondary" id="btnInspectorOpenCrud" onclick="openCrudForTable(state.selectedTable)"
-                style="padding:6px 12px; font-size:12px; border-radius:6px; white-space:nowrap;">
-                <img src="assets/icons/sthapati-chisel.svg" class="fmm-icon"
-                  style="width:12px;height:12px;vertical-align:middle;margin-right:2px;" alt="" /> Edit in CRUD
+          </div>
+
+          <!-- Table Selection Grid (Organized cleanly) -->
+          <div class="table-selector-grid" id="tableNavStrip">
+            <!-- Dynamically populated table cards/buttons -->
+          </div>
+
+          <!-- Super Admin User Role Manager Bar -->
+          <div id="adminUserRoleManagerBox" class="admin-user-manager-box">
+            <div class="user-mgr-header">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <img src="assets/icons/chola-seal.svg" class="fmm-icon" style="width:24px; height:24px;"
+                  alt="Super Admin" />
+                <div>
+                  <strong style="font-size:14px;">Super Admin: User Role &amp; Studio Access Manager</strong>
+                  <div style="font-size:12px; color:var(--muted);">Administrators access both studios; Curators access
+                    Visual OCR Studio only; Scholars have free access to Study 001.</div>
+                </div>
+              </div>
+              <span class="badge" style="background:var(--bronze-light); color:var(--bronze); font-weight:700;">Super
+                Admin Mode</span>
+            </div>
+            <div class="user-mgr-form" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
+              <input type="email" id="assignUserEmail"
+                placeholder="Target user email (e.g. curator.colleague@gmail.com)" class="search-input"
+                style="flex:2; min-width:240px; padding:8px 12px; font-size:13px; border:1px solid var(--line);">
+              <select id="assignUserRole" class="search-input"
+                style="flex:1.5; min-width:220px; padding:8px 12px; font-size:12.5px; border:1px solid var(--line); background:var(--paper-sunken); color:var(--ink);">
+                <option value="curator">Curator (Visual OCR Studio Only)</option>
+                <option value="admin">Administrator (Both Studios + Role Manager)</option>
+                <option value="scholar">Scholar (Public / Free 1 Study)</option>
+              </select>
+              <button class="btn-primary" onclick="executeAssignRole()"
+                style="padding:8px 18px; font-size:12.5px; white-space:nowrap;">
+                <span><img src="assets/icons/pramana-check.svg" class="fmm-icon" alt="" /></span> Grant / Update Role
               </button>
-              <div class="search-wrap" style="position:relative;">
-                <input type="text" id="tableRowSearchInput" class="table-search-input compact"
-                  placeholder="Filter table rows...">
-              </div>
             </div>
           </div>
 
-          <div id="adminGridContainer" style="overflow-x:auto;">
-            <!-- Dynamic Data Table -->
+          <!-- Data Table Display -->
+          <div class="data-table-container">
+            <!-- Compact Executive Medallion Table Header -->
+            <div class="inspector-table-hero" id="tableInspectorHero">
+              <div class="inspector-hero-left">
+                <div class="inspector-hero-top-row">
+                  <span id="inspectorLayerBadge" class="layer-mini-tag ods">🔵 SILVER ODS</span>
+                  <span id="inspectorRowCountBadge" class="hero-row-badge">7 rows</span>
+                  <h3 id="currentTableNameHeading" class="hero-table-title">T_ODS_STUDIES</h3>
+                  <code id="currentTableRawName" class="hero-raw-code">studies</code>
+                </div>
+                <div id="currentTableDesc" class="hero-table-desc">Core research monographs, access tiers &amp;
+                  publication metadata</div>
+              </div>
+              <div class="inspector-hero-right">
+                <button class="btn-secondary" id="btnInspectorOpenCrud" onclick="openCrudForTable(state.selectedTable)"
+                  style="padding:6px 12px; font-size:12px; border-radius:6px; white-space:nowrap;">
+                  <img src="assets/icons/sthapati-chisel.svg" class="fmm-icon"
+                    style="width:12px;height:12px;vertical-align:middle;margin-right:2px;" alt="" /> Edit in CRUD
+                </button>
+                <div class="search-wrap" style="position:relative;">
+                  <input type="text" id="tableRowSearchInput" class="table-search-input compact"
+                    placeholder="Filter table rows...">
+                </div>
+              </div>
+            </div>
+
+            <div id="adminGridContainer" style="overflow-x:auto;">
+              <!-- Dynamic Data Table -->
+            </div>
+
+            <div class="table-pagination-bar">
+              <div id="tablePaginationInfo" style="font-size:13px; color:var(--muted);">Showing page 1 of 1</div>
+              <div style="display:flex; gap:8px;">
+                <button id="tablePrevPageBtn" class="sample-btn"><img src="assets/icons/arrow-left.svg" class="fmm-icon"
+                    alt="" /> Previous</button>
+                <button id="tableNextPageBtn" class="sample-btn">Next <img src="assets/icons/arrow-right.svg"
+                    class="fmm-icon" alt="" /></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================ -->
+      <!-- VIEW 4: CURATORIAL CRUD MAINTENANCE & AUDIT TRAIL                -->
+      <!-- ================================================================ -->
+      <div id="dataStudioCrudView" class="studio-view-pane" style="display:none;">
+        <div class="crud-container">
+          <div class="crud-header-strip">
+            <div>
+              <h3 style="font-family:var(--font-serif); font-size:20px; margin:0 0 4px 0;">Curatorial Maintenance &amp;
+                Catalog Suite</h3>
+              <div style="font-size:12.5px; color:var(--muted);">Maintain canonical Series, Studies, Dictionary terms,
+                and Document Catalogs with automatic audit trail logging.</div>
+            </div>
+            <!-- Medallion Layer Filter Toolbar -->
+            <div class="crud-layer-nav" id="crudLayerFilter">
+              <span
+                style="font-size:11.5px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-right:4px;">Layer
+                Filter:</span>
+              <button class="crud-layer-btn active" data-layer="all" onclick="filterCrudByLayer('all', this)">✨ All (21
+                Tables)</button>
+              <button class="crud-layer-btn" data-layer="raw" onclick="filterCrudByLayer('raw', this)">🟤 Bronze RAW
+                (3)</button>
+              <button class="crud-layer-btn" data-layer="ods" onclick="filterCrudByLayer('ods', this)">🔵 Silver ODS
+                (11)</button>
+              <button class="crud-layer-btn" data-layer="syst" onclick="filterCrudByLayer('syst', this)">🟡 Gold SYST
+                (7)</button>
+            </div>
+
+            <!-- Complete 21-Table Medallion CRUD Tabs -->
+            <div class="crud-entity-tabs" id="crudEntityTabs" style="display:flex; flex-wrap:wrap; gap:6px;">
+              <!-- 🟤 BRONZE RAW LAYER -->
+              <button class="crud-tab-btn medal-raw" data-crud="study_slides" data-layer="raw"
+                title="T_RAW_STUDY_SLIDES — Raw plate images, sort order, cleaned text">
+                <span class="layer-mini-tag raw">RAW</span> Plate Slides (<span id="crudCount_study_slides">27</span>)
+              </button>
+              <button class="crud-tab-btn medal-raw" data-crud="slide_ocr_data" data-layer="raw"
+                title="T_RAW_SLIDE_OCR — OCR engine outputs, confidence, tokens">
+                <span class="layer-mini-tag raw">RAW</span> Slide OCR (<span id="crudCount_slide_ocr_data">3</span>)
+              </button>
+              <button class="crud-tab-btn medal-raw" data-crud="ai_metadata_proposals" data-layer="raw"
+                title="T_RAW_AI_PROPOSALS — Machine-learning term proposals">
+                <span class="layer-mini-tag raw">RAW</span> AI Proposals (<span
+                  id="crudCount_ai_metadata_proposals">0</span>)
+              </button>
+
+              <!-- 🔵 SILVER ODS LAYER -->
+              <button class="crud-tab-btn medal-ods active" data-crud="studies" data-layer="ods"
+                title="T_ODS_STUDIES — Research Monographs">
+                <span class="layer-mini-tag ods">ODS</span> Studies (<span id="crudCount_studies">7</span>)
+              </button>
+              <button class="crud-tab-btn medal-ods" data-crud="series" data-layer="ods"
+                title="T_ODS_SERIES — Editorial Series">
+                <span class="layer-mini-tag ods">ODS</span> Series (<span id="crudCount_series">19</span>)
+              </button>
+              <button class="crud-tab-btn medal-ods" data-crud="dictionary" data-layer="ods"
+                title="T_ODS_DICTIONARY — IAST Sanskrit Glossary">
+                <span class="layer-mini-tag ods">ODS</span> Dictionary (<span id="crudCount_dictionary">6</span>)
+              </button>
+              <button class="crud-tab-btn medal-ods" data-crud="catalog" data-layer="ods"
+                title="T_ODS_DOC_CATALOG — Primary Text Sources">
+                <span class="layer-mini-tag ods">ODS</span> Doc Catalog (<span id="crudCount_catalog">5</span>)
+              </button>
+              <button class="crud-tab-btn medal-ods" data-crud="taxonomy_terms" data-layer="ods"
+                title="T_ODS_TAXONOMY_TERMS — Mudras, Asanas, Vahanas">
+                <span class="layer-mini-tag ods">ODS</span> Taxonomy Terms (<span
+                  id="crudCount_taxonomy_terms">37</span>)
+              </button>
+              <button class="crud-tab-btn medal-ods" data-crud="taxonomy_types" data-layer="ods"
+                title="T_ODS_TAXONOMY_TYPES — Classification Types">
+                <span class="layer-mini-tag ods">ODS</span> Taxonomy Types (<span
+                  id="crudCount_taxonomy_types">6</span>)
+              </button>
+              <button class="crud-tab-btn medal-ods" data-crud="term_aliases" data-layer="ods"
+                title="T_ODS_TERM_ALIASES — Multilingual Aliases">
+                <span class="layer-mini-tag ods">ODS</span> Term Aliases (<span id="crudCount_term_aliases">72</span>)
+              </button>
+              <button class="crud-tab-btn medal-ods" data-crud="places" data-layer="ods"
+                title="T_ODS_PLACES — Temples & Geographic Sites">
+                <span class="layer-mini-tag ods">ODS</span> Places (<span id="crudCount_places">3</span>)
+              </button>
+              <button class="crud-tab-btn medal-ods" data-crud="periods" data-layer="ods"
+                title="T_ODS_PERIODS — Dynasties & Eras">
+                <span class="layer-mini-tag ods">ODS</span> Periods (<span id="crudCount_periods">8</span>)
+              </button>
+              <button class="crud-tab-btn medal-ods" data-crud="study_taxonomy_mappings" data-layer="ods"
+                title="T_ODS_STUDY_TAXONOMY — Verified Bridges">
+                <span class="layer-mini-tag ods">ODS</span> Taxonomy Bridges (<span
+                  id="crudCount_study_taxonomy_mappings">20</span>)
+              </button>
+              <button class="crud-tab-btn medal-ods" data-crud="content_access_rules" data-layer="ods"
+                title="T_ODS_CONTENT_RULES — DRM Access Rules">
+                <span class="layer-mini-tag ods">ODS</span> Access Rules (<span
+                  id="crudCount_content_access_rules">0</span>)
+              </button>
+
+              <!-- 🟡 GOLD SYST LAYER -->
+              <button class="crud-tab-btn medal-syst" data-crud="users" data-layer="syst"
+                title="T_SYST_USERS — User Identities & Roles">
+                <span class="layer-mini-tag syst">SYST</span> Users (<span id="crudCount_users">5</span>)
+              </button>
+              <button class="crud-tab-btn medal-syst" data-crud="user_subscriptions" data-layer="syst"
+                title="T_SYST_SUBSCRIPTIONS — User Subscriptions">
+                <span class="layer-mini-tag syst">SYST</span> Subscriptions (<span
+                  id="crudCount_user_subscriptions">0</span>)
+              </button>
+              <button class="crud-tab-btn medal-syst" data-crud="user_downloads" data-layer="syst"
+                title="T_SYST_DOWNLOADS — Download Receipts">
+                <span class="layer-mini-tag syst">SYST</span> Downloads (<span id="crudCount_user_downloads">0</span>)
+              </button>
+              <button class="crud-tab-btn medal-syst" data-crud="premium_download_requests" data-layer="syst"
+                title="T_SYST_DOWNLOAD_REQ — GPay Payment Orders">
+                <span class="layer-mini-tag syst">SYST</span> GPay Orders (<span
+                  id="crudCount_premium_download_requests">0</span>)
+              </button>
+              <button class="crud-tab-btn medal-syst" data-crud="user_behavior_logs" data-layer="syst"
+                title="T_SYST_BEHAVIOR_LOG — Scholarly Event Stream">
+                <span class="layer-mini-tag syst">SYST</span> Telemetry (<span
+                  id="crudCount_user_behavior_logs">55</span>)
+              </button>
+              <button class="crud-tab-btn medal-syst" data-crud="audit" data-layer="syst"
+                title="T_SYST_AUDIT_LOG — Immutable Audit Trail">
+                <span class="layer-mini-tag syst">SYST</span> Audit Trail (Logs)
+              </button>
+              <button class="crud-tab-btn medal-syst config-tab-highlight" data-crud="param_config" data-layer="syst"
+                title="T_SYST_PARAM_CONFIG — Application Configuration">
+                <span class="layer-mini-tag syst">SYST</span> <img src="assets/icons/silpa-gear.svg" class="fmm-icon"
+                  style="width:12px;height:12px;vertical-align:middle;margin-right:2px;" alt="" /> Config (<span
+                  id="crudCount_param_config">0</span>)
+              </button>
+            </div>
           </div>
 
-          <div class="table-pagination-bar">
-            <div id="tablePaginationInfo" style="font-size:13px; color:var(--muted);">Showing page 1 of 1</div>
+          <div class="crud-toolbar">
+            <div class="crud-search-box">
+              <input type="text" id="crudSearchInput" class="table-search-input" style="width:100%;"
+                placeholder="Search records in current entity...">
+            </div>
+            <div class="crud-action-group">
+              <button class="btn-secondary" id="btnRefreshCrud" style="padding:8px 14px; font-size:12.5px;"><img
+                  src="assets/icons/dharma-chakra.svg" class="fmm-icon" style="width:14px; height:14px;" alt="" />
+                Refresh</button>
+              <button class="btn-primary" id="btnAddCrudRecord" style="padding:8px 16px; font-size:12.5px;"><span><img
+                    src="assets/icons/pramana-check.svg" class="fmm-icon" alt="" /></span> + Add New Record</button>
+            </div>
+          </div>
+
+          <div id="crudGridContainer" style="overflow-x:auto;">
+            <!-- Dynamic CRUD Table -->
+          </div>
+
+          <div class="table-pagination-bar" id="crudPaginationBar">
+            <div id="crudPaginationInfo" style="font-size:13px; color:var(--muted);">Showing page 1 of 1</div>
             <div style="display:flex; gap:8px;">
-              <button id="tablePrevPageBtn" class="sample-btn"><img src="assets/icons/arrow-left.svg" class="fmm-icon"
+              <button id="crudPrevPageBtn" class="sample-btn"><img src="assets/icons/arrow-left.svg" class="fmm-icon"
                   alt="" /> Previous</button>
-              <button id="tableNextPageBtn" class="sample-btn">Next <img src="assets/icons/arrow-right.svg"
+              <button id="crudNextPageBtn" class="sample-btn">Next <img src="assets/icons/arrow-right.svg"
                   class="fmm-icon" alt="" /></button>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- ================================================================ -->
-    <!-- VIEW 4: CURATORIAL CRUD MAINTENANCE & AUDIT TRAIL                -->
-    <!-- ================================================================ -->
-    <div id="dataStudioCrudView" class="studio-view-pane" style="display:none;">
-      <div class="crud-container">
-        <div class="crud-header-strip">
-          <div>
-            <h3 style="font-family:var(--font-serif); font-size:20px; margin:0 0 4px 0;">Curatorial Maintenance &amp;
-              Catalog Suite</h3>
-            <div style="font-size:12.5px; color:var(--muted);">Maintain canonical Series, Studies, Dictionary terms,
-              and Document Catalogs with automatic audit trail logging.</div>
-          </div>
-          <!-- Medallion Layer Filter Toolbar -->
-          <div class="crud-layer-nav" id="crudLayerFilter">
-            <span
-              style="font-size:11.5px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-right:4px;">Layer
-              Filter:</span>
-            <button class="crud-layer-btn active" data-layer="all" onclick="filterCrudByLayer('all', this)">✨ All (21
-              Tables)</button>
-            <button class="crud-layer-btn" data-layer="raw" onclick="filterCrudByLayer('raw', this)">🟤 Bronze RAW
-              (3)</button>
-            <button class="crud-layer-btn" data-layer="ods" onclick="filterCrudByLayer('ods', this)">🔵 Silver ODS
-              (11)</button>
-            <button class="crud-layer-btn" data-layer="syst" onclick="filterCrudByLayer('syst', this)">🟡 Gold SYST
-              (7)</button>
-          </div>
-
-          <!-- Complete 21-Table Medallion CRUD Tabs -->
-          <div class="crud-entity-tabs" id="crudEntityTabs" style="display:flex; flex-wrap:wrap; gap:6px;">
-            <!-- 🟤 BRONZE RAW LAYER -->
-            <button class="crud-tab-btn medal-raw" data-crud="study_slides" data-layer="raw"
-              title="T_RAW_STUDY_SLIDES — Raw plate images, sort order, cleaned text">
-              <span class="layer-mini-tag raw">RAW</span> Plate Slides (<span id="crudCount_study_slides">27</span>)
-            </button>
-            <button class="crud-tab-btn medal-raw" data-crud="slide_ocr_data" data-layer="raw"
-              title="T_RAW_SLIDE_OCR — OCR engine outputs, confidence, tokens">
-              <span class="layer-mini-tag raw">RAW</span> Slide OCR (<span id="crudCount_slide_ocr_data">3</span>)
-            </button>
-            <button class="crud-tab-btn medal-raw" data-crud="ai_metadata_proposals" data-layer="raw"
-              title="T_RAW_AI_PROPOSALS — Machine-learning term proposals">
-              <span class="layer-mini-tag raw">RAW</span> AI Proposals (<span
-                id="crudCount_ai_metadata_proposals">0</span>)
-            </button>
-
-            <!-- 🔵 SILVER ODS LAYER -->
-            <button class="crud-tab-btn medal-ods active" data-crud="studies" data-layer="ods"
-              title="T_ODS_STUDIES — Research Monographs">
-              <span class="layer-mini-tag ods">ODS</span> Studies (<span id="crudCount_studies">7</span>)
-            </button>
-            <button class="crud-tab-btn medal-ods" data-crud="series" data-layer="ods"
-              title="T_ODS_SERIES — Editorial Series">
-              <span class="layer-mini-tag ods">ODS</span> Series (<span id="crudCount_series">19</span>)
-            </button>
-            <button class="crud-tab-btn medal-ods" data-crud="dictionary" data-layer="ods"
-              title="T_ODS_DICTIONARY — IAST Sanskrit Glossary">
-              <span class="layer-mini-tag ods">ODS</span> Dictionary (<span id="crudCount_dictionary">6</span>)
-            </button>
-            <button class="crud-tab-btn medal-ods" data-crud="catalog" data-layer="ods"
-              title="T_ODS_DOC_CATALOG — Primary Text Sources">
-              <span class="layer-mini-tag ods">ODS</span> Doc Catalog (<span id="crudCount_catalog">5</span>)
-            </button>
-            <button class="crud-tab-btn medal-ods" data-crud="taxonomy_terms" data-layer="ods"
-              title="T_ODS_TAXONOMY_TERMS — Mudras, Asanas, Vahanas">
-              <span class="layer-mini-tag ods">ODS</span> Taxonomy Terms (<span id="crudCount_taxonomy_terms">37</span>)
-            </button>
-            <button class="crud-tab-btn medal-ods" data-crud="taxonomy_types" data-layer="ods"
-              title="T_ODS_TAXONOMY_TYPES — Classification Types">
-              <span class="layer-mini-tag ods">ODS</span> Taxonomy Types (<span id="crudCount_taxonomy_types">6</span>)
-            </button>
-            <button class="crud-tab-btn medal-ods" data-crud="term_aliases" data-layer="ods"
-              title="T_ODS_TERM_ALIASES — Multilingual Aliases">
-              <span class="layer-mini-tag ods">ODS</span> Term Aliases (<span id="crudCount_term_aliases">72</span>)
-            </button>
-            <button class="crud-tab-btn medal-ods" data-crud="places" data-layer="ods"
-              title="T_ODS_PLACES — Temples & Geographic Sites">
-              <span class="layer-mini-tag ods">ODS</span> Places (<span id="crudCount_places">3</span>)
-            </button>
-            <button class="crud-tab-btn medal-ods" data-crud="periods" data-layer="ods"
-              title="T_ODS_PERIODS — Dynasties & Eras">
-              <span class="layer-mini-tag ods">ODS</span> Periods (<span id="crudCount_periods">8</span>)
-            </button>
-            <button class="crud-tab-btn medal-ods" data-crud="study_taxonomy_mappings" data-layer="ods"
-              title="T_ODS_STUDY_TAXONOMY — Verified Bridges">
-              <span class="layer-mini-tag ods">ODS</span> Taxonomy Bridges (<span
-                id="crudCount_study_taxonomy_mappings">20</span>)
-            </button>
-            <button class="crud-tab-btn medal-ods" data-crud="content_access_rules" data-layer="ods"
-              title="T_ODS_CONTENT_RULES — DRM Access Rules">
-              <span class="layer-mini-tag ods">ODS</span> Access Rules (<span
-                id="crudCount_content_access_rules">0</span>)
-            </button>
-
-            <!-- 🟡 GOLD SYST LAYER -->
-            <button class="crud-tab-btn medal-syst" data-crud="users" data-layer="syst"
-              title="T_SYST_USERS — User Identities & Roles">
-              <span class="layer-mini-tag syst">SYST</span> Users (<span id="crudCount_users">5</span>)
-            </button>
-            <button class="crud-tab-btn medal-syst" data-crud="user_subscriptions" data-layer="syst"
-              title="T_SYST_SUBSCRIPTIONS — User Subscriptions">
-              <span class="layer-mini-tag syst">SYST</span> Subscriptions (<span
-                id="crudCount_user_subscriptions">0</span>)
-            </button>
-            <button class="crud-tab-btn medal-syst" data-crud="user_downloads" data-layer="syst"
-              title="T_SYST_DOWNLOADS — Download Receipts">
-              <span class="layer-mini-tag syst">SYST</span> Downloads (<span id="crudCount_user_downloads">0</span>)
-            </button>
-            <button class="crud-tab-btn medal-syst" data-crud="premium_download_requests" data-layer="syst"
-              title="T_SYST_DOWNLOAD_REQ — GPay Payment Orders">
-              <span class="layer-mini-tag syst">SYST</span> GPay Orders (<span
-                id="crudCount_premium_download_requests">0</span>)
-            </button>
-            <button class="crud-tab-btn medal-syst" data-crud="user_behavior_logs" data-layer="syst"
-              title="T_SYST_BEHAVIOR_LOG — Scholarly Event Stream">
-              <span class="layer-mini-tag syst">SYST</span> Telemetry (<span
-                id="crudCount_user_behavior_logs">55</span>)
-            </button>
-            <button class="crud-tab-btn medal-syst" data-crud="audit" data-layer="syst"
-              title="T_SYST_AUDIT_LOG — Immutable Audit Trail">
-              <span class="layer-mini-tag syst">SYST</span> Audit Trail (Logs)
-            </button>
-            <button class="crud-tab-btn medal-syst config-tab-highlight" data-crud="param_config" data-layer="syst"
-              title="T_SYST_PARAM_CONFIG — Application Configuration">
-              <span class="layer-mini-tag syst">SYST</span> <img src="assets/icons/silpa-gear.svg" class="fmm-icon"
-                style="width:12px;height:12px;vertical-align:middle;margin-right:2px;" alt="" /> Config (<span
-                id="crudCount_param_config">0</span>)
-            </button>
-          </div>
-        </div>
-
-        <div class="crud-toolbar">
-          <div class="crud-search-box">
-            <input type="text" id="crudSearchInput" class="table-search-input" style="width:100%;"
-              placeholder="Search records in current entity...">
-          </div>
-          <div class="crud-action-group">
-            <button class="btn-secondary" id="btnRefreshCrud" style="padding:8px 14px; font-size:12.5px;"><img
-                src="assets/icons/dharma-chakra.svg" class="fmm-icon" style="width:14px; height:14px;" alt="" />
-              Refresh</button>
-            <button class="btn-primary" id="btnAddCrudRecord" style="padding:8px 16px; font-size:12.5px;"><span><img
-                  src="assets/icons/pramana-check.svg" class="fmm-icon" alt="" /></span> + Add New Record</button>
-          </div>
-        </div>
-
-        <div id="crudGridContainer" style="overflow-x:auto;">
-          <!-- Dynamic CRUD Table -->
-        </div>
-
-        <div class="table-pagination-bar" id="crudPaginationBar">
-          <div id="crudPaginationInfo" style="font-size:13px; color:var(--muted);">Showing page 1 of 1</div>
-          <div style="display:flex; gap:8px;">
-            <button id="crudPrevPageBtn" class="sample-btn"><img src="assets/icons/arrow-left.svg" class="fmm-icon"
-                alt="" /> Previous</button>
-            <button id="crudNextPageBtn" class="sample-btn">Next <img src="assets/icons/arrow-right.svg"
-                class="fmm-icon" alt="" /></button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-  </section>
+    </section>
 
 
-  <section class="screen-pane" id="tab-dictionary">
-    <div class="screen-header">
-      <div class="screen-eyebrow">Scholarly Glossary & Lexicon</div>
-      <h2 class="screen-title">Dictionary of Iconography</h2>
-      <p class="screen-subtitle">
-        Canonical iconographic terms, Sanskrit etymologies, Agamic definitions, and cross-references directly linked
-        to archive studies.
-      </p>
-    </div>
-
-    <div id="dictionaryEntriesList">
-      <!-- Dynamically loaded dictionary entries -->
-    </div>
-  </section>
-
-  </div>
-
-  <!-- ==================================================================== -->
-  <!-- SCREEN 5: ABOUT THE ARCHIVE (Authentic Five Metal Masonry)            -->
-  <!-- ==================================================================== -->
-  <section class="screen-pane" id="tab-about">
-    <div class="detail-container">
-      <!-- About WebGL Element -->
-      <div class="detail-visual" id="about-canvas-container"></div>
-      <div class="detail-copy">
-        <div class="eyebrow">About Five Metal Masonry</div>
-        <h1 class="about-headline">Nurturing & Preserving Panchaloha Bronzes.</h1>
-        <p class="lead">
-          Five Metal Masonry was born out of sheer love for South Indian Bronze Panchaloha sculptures. We began this
-          journey in early 2024 with an aim to nurture and preserve this ancient art form, making sacred bronze icons
-          accessible while honoring canonical tradition.
-        </p>
-        <p style="color:var(--muted); font-size:14.5px; line-height:1.65; margin-bottom:20px;">
-          We believe our intricately crafted bronze icons transcend words — they speak to the soul, evoke devotional
-          emotion, create lifetime memories, and carry timeless stories down through generations. Collaborating with
-          both generational sthapatis and emerging master artisans, we bridge living heritage with computational
-          iconography.
-        </p>
-        <div class="facts-grid">
-          <div class="fact-item">
-            <b>Iconography & Iconometry</b>
-            <span>Deep study of Shilpa Shastra proportions (Talamana), attributes (Ayudha), and gestures (Mudra).</span>
-          </div>
-          <div class="fact-item">
-            <b>Authentic Panchaloha</b>
-            <span>Traditional lost-wax (Madhuchehishtavidhana) casting using copper, zinc, lead, silver & gold.</span>
-          </div>
-          <div class="fact-item">
-            <b>Living Master Craftsmen</b>
-            <span>Direct partnership with hereditary artisans from Swamimalai, Thanjavur, and Kumbakonam.</span>
-          </div>
-          <div class="fact-item">
-            <b>Independent Digital Archive</b>
-            <span>Permanent, high-resolution study monographs beyond the transient feed of social media.</span>
-          </div>
-          <div class="fact-item">
-            <b>OCR Ingestion</b>
-            <span>Automated Shastra term extraction, metadata auditing, and analytical indexing.</span>
-          </div>
-          <div class="fact-item">
-            <b>Social & Community</b>
-            <span>Active study discourse on Instagram <a href="https://instagram.com/five_metal_masonry" target="_blank"
-                style="color:var(--accent); font-weight:600;">@five_metal_masonry</a> & Facebook.</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================================================================== -->
-  <!-- SCREEN 6: MEMBER ACCESS (From Wireframe)                             -->
-  <!-- ==================================================================== -->
-  <section class="screen-pane" id="tab-member">
-    <div class="apple-membership">
-
-      <!-- Hero -->
-      <div class="apple-member-hero">
-        <p class="apple-eyebrow">Scholar Membership</p>
-        <h2 class="apple-hero-title">Go deeper into<br>the collection.</h2>
-        <p class="apple-hero-subtitle">
-          Museum-grade archival plates, verified Sanskrit transcriptions,
-          and canonical iconometric measurements &mdash; all in one living archive.
+    <section class="screen-pane" id="tab-dictionary">
+      <div class="screen-header">
+        <div class="screen-eyebrow">Scholarly Glossary & Lexicon</div>
+        <h2 class="screen-title">Dictionary of Iconography</h2>
+        <p class="screen-subtitle">
+          Canonical iconographic terms, Sanskrit etymologies, Agamic definitions, and cross-references directly linked
+          to archive studies.
         </p>
       </div>
 
-      <!-- Tier Cards -->
-      <div class="apple-tiers">
+      <div id="dictionaryEntriesList">
+        <!-- Dynamically loaded dictionary entries -->
+      </div>
+    </section>
 
-        <!-- Guest -->
-        <div class="apple-tier-card">
-          <div class="apple-tier-head">
-            <div class="apple-tier-icon"><img src="assets/icons/grantha-lexicon.svg" class="fmm-icon" alt="" /></div>
-            <h3 class="apple-tier-name">Guest</h3>
-            <div class="apple-tier-price">Free</div>
-            <p class="apple-tier-tagline">Browse the archive and explore featured studies.</p>
-          </div>
-          <div class="apple-tier-divider"></div>
-          <ul class="apple-feature-list">
-            <li class="apple-feature-yes"><span class="apple-check"></span> Browse all featured studies</li>
-            <li class="apple-feature-yes"><span class="apple-check"></span> Search the iconography corpus</li>
-            <li class="apple-feature-yes"><span class="apple-check"></span> View Study 001 (Ganesa) full slides</li>
-            <li class="apple-feature-yes"><span class="apple-check"></span> Dictionary of Iconography</li>
-            <li class="apple-feature-no">Full monograph slide carousels</li>
-            <li class="apple-feature-no">300 DPI archival plate downloads</li>
 
-          </ul>
-          <div class="apple-tier-cta">
-            <button class="apple-btn apple-btn-outline" disabled>Current Access</button>
+    <!-- ==================================================================== -->
+    <!-- SCREEN 5: ABOUT THE ARCHIVE (Authentic Five Metal Masonry)            -->
+    <!-- ==================================================================== -->
+    <section class="screen-pane" id="tab-about">
+      <div class="detail-container">
+        <!-- About WebGL Element -->
+        <div class="detail-visual" id="about-canvas-container"></div>
+        <div class="detail-copy">
+          <div class="eyebrow">About Five Metal Masonry</div>
+          <h1 class="about-headline">Nurturing & Preserving Panchaloha Bronzes.</h1>
+          <p class="lead">
+            Five Metal Masonry was born out of sheer love for South Indian Bronze Panchaloha sculptures. We began this
+            journey in early 2024 with an aim to nurture and preserve this ancient art form, making sacred bronze icons
+            accessible while honoring canonical tradition.
+          </p>
+          <p style="color:var(--muted); font-size:14.5px; line-height:1.65; margin-bottom:20px;">
+            We believe our intricately crafted bronze icons transcend words — they speak to the soul, evoke devotional
+            emotion, create lifetime memories, and carry timeless stories down through generations. Collaborating with
+            both generational sthapatis and emerging master artisans, we bridge living heritage with computational
+            iconography.
+          </p>
+          <div class="facts-grid">
+            <div class="fact-item">
+              <b>Iconography & Iconometry</b>
+              <span>Deep study of Shilpa Shastra proportions (Talamana), attributes (Ayudha), and gestures
+                (Mudra).</span>
+            </div>
+            <div class="fact-item">
+              <b>Authentic Panchaloha</b>
+              <span>Traditional lost-wax (Madhuchehishtavidhana) casting using copper, zinc, lead, silver & gold.</span>
+            </div>
+            <div class="fact-item">
+              <b>Living Master Craftsmen</b>
+              <span>Direct partnership with hereditary artisans from Swamimalai, Thanjavur, and Kumbakonam.</span>
+            </div>
+            <div class="fact-item">
+              <b>Independent Digital Archive</b>
+              <span>Permanent, high-resolution study monographs beyond the transient feed of social media.</span>
+            </div>
+            <div class="fact-item">
+              <b>OCR Ingestion</b>
+              <span>Automated Shastra term extraction, metadata auditing, and analytical indexing.</span>
+            </div>
+            <div class="fact-item">
+              <b>Social & Community</b>
+              <span>Active study discourse on Instagram <a href="https://instagram.com/five_metal_masonry"
+                  target="_blank" style="color:var(--accent); font-weight:600;">@five_metal_masonry</a> &
+                Facebook.</span>
+            </div>
           </div>
         </div>
+      </div>
+    </section>
 
-        <!-- Scholar -->
-        <div class="apple-tier-card">
-          <div class="apple-tier-head">
-            <div class="apple-tier-icon"><img src="assets/icons/padma-scholar.svg" class="fmm-icon" alt="" /></div>
-            <h3 class="apple-tier-name">Scholar</h3>
-            <div class="apple-tier-price">Free<span class="apple-price-note">account</span></div>
-            <p class="apple-tier-tagline">Sign in to save progress and track your studies.</p>
-          </div>
-          <div class="apple-tier-divider"></div>
-          <ul class="apple-feature-list">
-            <li class="apple-feature-section">Everything in Guest, plus:</li>
-            <li class="apple-feature-yes"><span class="apple-check"></span> Personalized search history</li>
-            <li class="apple-feature-yes"><span class="apple-check"></span> Study 001 &amp; 002 full slide access</li>
-            <li class="apple-feature-yes"><span class="apple-check"></span> Autocomplete &amp; taxonomy browsing</li>
-            <li class="apple-feature-yes"><span class="apple-check"></span> Preview slides for premium studies</li>
-            <li class="apple-feature-no">Full premium monograph access</li>
-            <li class="apple-feature-no">300 DPI archival downloads</li>
-          </ul>
-          <div class="apple-tier-cta">
-            <button class="apple-btn apple-btn-fill" onclick="openAuthModal()">Create Free Account</button>
-          </div>
+    <!-- ==================================================================== -->
+    <!-- SCREEN 6: MEMBER ACCESS (From Wireframe)                             -->
+    <!-- ==================================================================== -->
+    <section class="screen-pane" id="tab-member">
+      <div class="apple-membership">
+
+        <!-- Hero -->
+        <div class="apple-member-hero">
+          <p class="apple-eyebrow">Scholar Membership</p>
+          <h2 class="apple-hero-title">Go deeper into<br>the collection.</h2>
+          <p class="apple-hero-subtitle">
+            Museum-grade archival plates, verified Sanskrit transcriptions,
+            and canonical iconometric measurements &mdash; all in one living archive.
+          </p>
         </div>
 
-        <!-- Scholar Pro (Featured) -->
-        <div class="apple-tier-card apple-tier-featured">
-          <div class="apple-featured-badge">Recommended</div>
-          <div class="apple-tier-head">
-            <div class="apple-tier-icon"><img src="assets/icons/varaha-coin.svg" class="fmm-icon" alt="" /></div>
-            <h3 class="apple-tier-name">Scholar Pro</h3>
-            <div class="apple-tier-price"><span class="apple-currency">&#8377;</span>499<span
-                class="apple-price-note">/year</span></div>
-            <p class="apple-tier-tagline">Unlock the complete archive with unrestricted access.</p>
+        <!-- Tier Cards -->
+        <div class="apple-tiers">
+
+          <!-- Guest -->
+          <div class="apple-tier-card">
+            <div class="apple-tier-head">
+              <div class="apple-tier-icon"><img src="assets/icons/grantha-lexicon.svg" class="fmm-icon" alt="" /></div>
+              <h3 class="apple-tier-name">Guest</h3>
+              <div class="apple-tier-price">Free</div>
+              <p class="apple-tier-tagline">Browse the archive and explore featured studies.</p>
+            </div>
+            <div class="apple-tier-divider"></div>
+            <ul class="apple-feature-list">
+              <li class="apple-feature-yes"><span class="apple-check"></span> Browse all featured studies</li>
+              <li class="apple-feature-yes"><span class="apple-check"></span> Search the iconography corpus</li>
+              <li class="apple-feature-yes"><span class="apple-check"></span> View Study 001 (Ganesa) full slides</li>
+              <li class="apple-feature-yes"><span class="apple-check"></span> Dictionary of Iconography</li>
+              <li class="apple-feature-no">Full monograph slide carousels</li>
+              <li class="apple-feature-no">300 DPI archival plate downloads</li>
+
+            </ul>
+            <div class="apple-tier-cta">
+              <button class="apple-btn apple-btn-outline" disabled>Current Access</button>
+            </div>
           </div>
-          <div class="apple-tier-divider"></div>
-          <ul class="apple-feature-list">
-            <li class="apple-feature-section">Everything in Scholar, plus:</li>
-            <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> All monographs with
-              full slides</li>
-            <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> 300 DPI archival
-              plate downloads</li>
 
-            <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> Canonical
-              measurement overlays</li>
-            <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> Priority curator
-              support</li>
-            <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> Early access to new
-              studies</li>
-          </ul>
+          <!-- Scholar -->
+          <div class="apple-tier-card">
+            <div class="apple-tier-head">
+              <div class="apple-tier-icon"><img src="assets/icons/padma-scholar.svg" class="fmm-icon" alt="" /></div>
+              <h3 class="apple-tier-name">Scholar</h3>
+              <div class="apple-tier-price">Free<span class="apple-price-note">account</span></div>
+              <p class="apple-tier-tagline">Sign in to save progress and track your studies.</p>
+            </div>
+            <div class="apple-tier-divider"></div>
+            <ul class="apple-feature-list">
+              <li class="apple-feature-section">Everything in Guest, plus:</li>
+              <li class="apple-feature-yes"><span class="apple-check"></span> Personalized search history</li>
+              <li class="apple-feature-yes"><span class="apple-check"></span> Study 001 &amp; 002 full slide access</li>
+              <li class="apple-feature-yes"><span class="apple-check"></span> Autocomplete &amp; taxonomy browsing</li>
+              <li class="apple-feature-yes"><span class="apple-check"></span> Preview slides for premium studies</li>
+              <li class="apple-feature-no">Full premium monograph access</li>
+              <li class="apple-feature-no">300 DPI archival downloads</li>
+            </ul>
+            <div class="apple-tier-cta">
+              <button class="apple-btn apple-btn-fill" onclick="openAuthModal()">Create Free Account</button>
+            </div>
+          </div>
 
+          <!-- Scholar Pro (Featured) -->
+          <div class="apple-tier-card apple-tier-featured">
+            <div class="apple-featured-badge">Recommended</div>
+            <div class="apple-tier-head">
+              <div class="apple-tier-icon"><img src="assets/icons/varaha-coin.svg" class="fmm-icon" alt="" /></div>
+              <h3 class="apple-tier-name">Scholar Pro</h3>
+              <div class="apple-tier-price"><span class="apple-currency">&#8377;</span>499<span
+                  class="apple-price-note">/year</span></div>
+              <p class="apple-tier-tagline">Unlock the complete archive with unrestricted access.</p>
+            </div>
+            <div class="apple-tier-divider"></div>
+            <ul class="apple-feature-list">
+              <li class="apple-feature-section">Everything in Scholar, plus:</li>
+              <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> All monographs
+                with
+                full slides</li>
+              <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> 300 DPI archival
+                plate downloads</li>
+
+              <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> Canonical
+                measurement overlays</li>
+              <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> Priority curator
+                support</li>
+              <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> Early access to
+                new
+                studies</li>
+            </ul>
+
+          </div>
+
+        </div>
+
+        <!-- Value Props -->
+        <div class="apple-value-strip">
+          <div class="apple-value-item">
+            <div class="apple-value-icon"><img src="assets/icons/drishti-lens.svg" class="fmm-icon" alt="" /></div>
+            <h4>300 DPI Archival Plates</h4>
+            <p>Museum-grade high-resolution plates for research, publication, and personal study.</p>
+          </div>
+
+          <div class="apple-value-item">
+            <div class="apple-value-icon"><img src="assets/icons/dharma-chakra.svg" class="fmm-icon" alt="" /></div>
+            <h4>Living Archive</h4>
+            <p>New studies and plates added monthly. Your membership grows the collection.</p>
+          </div>
         </div>
 
       </div>
-
-      <!-- Value Props -->
-      <div class="apple-value-strip">
-        <div class="apple-value-item">
-          <div class="apple-value-icon"><img src="assets/icons/drishti-lens.svg" class="fmm-icon" alt="" /></div>
-          <h4>300 DPI Archival Plates</h4>
-          <p>Museum-grade high-resolution plates for research, publication, and personal study.</p>
-        </div>
-
-        <div class="apple-value-item">
-          <div class="apple-value-icon"><img src="assets/icons/dharma-chakra.svg" class="fmm-icon" alt="" /></div>
-          <h4>Living Archive</h4>
-          <p>New studies and plates added monthly. Your membership grows the collection.</p>
-        </div>
-      </div>
-
-    </div>
-  </section>
+    </section>
+  </div> <!-- /.app-shell -->
 
 
   <!-- ==================================================================== -->
