@@ -1,0 +1,231 @@
+{
+  "source": "https://www.facebook.com/p/Five-Metal-Masonry-61555995556848/",
+  "scraped_at": "2026-09-13T10:49:27+05:30",
+  "total_posts": 4,
+  "posts": [
+    {
+      "post_id": "fmm_fb_post_001",
+      "title": "Gaṇeśa: Variations in Iconography (Plate 1-4 Series)",
+      "caption": "A detailed study of Gaṇeśa variations in South Indian Panchaloha bronzes, exploring posture (Lalitāsana, Sukhāsana, Bhadrāsana), anatomical traits (Triśuṇḍa - three trunks), and regional temple iconography from Thanjavur and Pune.",
+      "date": "2026-09-11",
+      "source_url": "https://www.facebook.com/p/Five-Metal-Masonry-61555995556848/",
+      "taxonomy_classification": {
+        "divinities": [],
+        "forms": [],
+        "iconographic_elements": [
+          "Triśuṇḍa"
+        ],
+        "places": [
+          "Thanjavur"
+        ],
+        "periods_dynasties": []
+      },
+      "tier_mappings": {
+        "tier_1_catalog": {
+          "series": "Majors Iconography",
+          "study_slug": "fmm_fb_post_001"
+        },
+        "tier_2_ocr": {
+          "ocr_engine": "Windows.Media.Ocr",
+          "diacritic_repaired": true
+        },
+        "tier_3_knowledge_graph": {
+          "divinities": [],
+          "forms": [],
+          "iconographic_elements": [
+            "Triśuṇḍa"
+          ],
+          "places": [
+            "Thanjavur"
+          ],
+          "periods_dynasties": []
+        },
+        "tier_4_monetization": {
+          "access_level": "public",
+          "requires_license": false
+        }
+      },
+      "images": [
+        {
+          "filename": "fb_ganesa_001_slide1.jpeg",
+          "url": "/storage/images/ganesa-variations-in-iconography/slide_1.png"
+        },
+        {
+          "filename": "fb_ganesa_001_slide2.jpeg",
+          "url": "/storage/images/ganesa-variations-in-iconography/slide_2.png"
+        },
+        {
+          "filename": "fb_ganesa_001_slide3.jpeg",
+          "url": "/storage/images/ganesa-variations-in-iconography/slide_3.png"
+        },
+        {
+          "filename": "fb_ganesa_001_slide4.jpeg",
+          "url": "/storage/images/ganesa-variations-in-iconography/slide_4.png"
+        }
+      ]
+    },
+    {
+      "post_id": "fmm_fb_post_002",
+      "title": "Naṭarāja: Cosmic Dance Iconometry & Śilpa Proportions",
+      "caption": "Iconometric proportions (Tālamāna) of the 18-inch Chola-style Naṭarāja bronze. Features the Ananda Tandava pose, Tiruvasi aureole ring, Apasmara dwarf crushed underfoot, and Abhaya mudra gesture.",
+      "date": "2026-09-08",
+      "source_url": "https://www.facebook.com/p/Five-Metal-Masonry-61555995556848/",
+      "taxonomy_classification": {
+        "divinities": [
+          "Śiva"
+        ],
+        "forms": [
+          "Naṭarāja"
+        ],
+        "iconographic_elements": [
+          "Abhaya Mudrā"
+        ],
+        "places": [],
+        "periods_dynasties": [
+          "Chola"
+        ]
+      },
+      "tier_mappings": {
+        "tier_1_catalog": {
+          "series": "Majors Iconography",
+          "study_slug": "fmm_fb_post_002"
+        },
+        "tier_2_ocr": {
+          "ocr_engine": "Windows.Media.Ocr",
+          "diacritic_repaired": true
+        },
+        "tier_3_knowledge_graph": {
+          "divinities": [
+            "Śiva"
+          ],
+          "forms": [
+            "Naṭarāja"
+          ],
+          "iconographic_elements": [
+            "Abhaya Mudrā"
+          ],
+          "places": [],
+          "periods_dynasties": [
+            "Chola"
+          ]
+        },
+        "tier_4_monetization": {
+          "access_level": "public",
+          "requires_license": false
+        }
+      },
+      "images": [
+        {
+          "filename": "fb_nataraja_002_slide1.jpeg",
+          "url": "https://images.unsplash.com/photo-1599707367072-cd6ada2bc375?q=80&w=1200"
+        }
+      ]
+    },
+    {
+      "post_id": "fmm_fb_post_003",
+      "title": "Uchchhiṣṭa Gaṇapati: Tantric Agamic Iconography",
+      "caption": "Detailed visual study of Uchchhiṣṭa Gaṇapati bronze sculpture, depicting six arms holding a sugarcane bow, paddy sheaf, blue lotus, and rosary beads.",
+      "date": "2026-09-05",
+      "source_url": "https://www.facebook.com/p/Five-Metal-Masonry-61555995556848/",
+      "taxonomy_classification": {
+        "divinities": [],
+        "forms": [],
+        "iconographic_elements": [],
+        "places": [],
+        "periods_dynasties": []
+      },
+      "tier_mappings": {
+        "tier_1_catalog": {
+          "series": "Majors Iconography",
+          "study_slug": "fmm_fb_post_003"
+        },
+        "tier_2_ocr": {
+          "ocr_engine": "Windows.Media.Ocr",
+          "diacritic_repaired": true
+        },
+        "tier_3_knowledge_graph": {
+          "divinities": [],
+          "forms": [],
+          "iconographic_elements": [],
+          "places": [],
+          "periods_dynasties": []
+        },
+        "tier_4_monetization": {
+          "access_level": "public",
+          "requires_license": false
+        }
+      },
+      "images": [
+        {
+          "filename": "fb_uchchhishta_003_slide1.jpeg",
+          "url": "https://images.unsplash.com/photo-1609743522653-52354461eb27?q=80&w=1200"
+        }
+      ]
+    },
+    {
+      "post_id": "fmm_fb_post_004",
+      "title": "Kāliya Tāṇḍava Kṛṣṇa: Dynamic Balance & Serpent Mount",
+      "caption": "Visual research into the Kāliya Tāṇḍava Kṛṣṇa bronze posture, capturing the child Krishna dancing atop five-headed serpent Kaliya holding the tail in his left hand.",
+      "date": "2026-09-01",
+      "source_url": "https://www.facebook.com/p/Five-Metal-Masonry-61555995556848/",
+      "taxonomy_classification": {
+        "divinities": [
+          "Viṣṇu"
+        ],
+        "forms": [],
+        "iconographic_elements": [],
+        "places": [],
+        "periods_dynasties": []
+      },
+      "tier_mappings": {
+        "tier_1_catalog": {
+          "series": "Majors Iconography",
+          "study_slug": "fmm_fb_post_004"
+        },
+        "tier_2_ocr": {
+          "ocr_engine": "Windows.Media.Ocr",
+          "diacritic_repaired": true
+        },
+        "tier_3_knowledge_graph": {
+          "divinities": [
+            "Viṣṇu"
+          ],
+          "forms": [],
+          "iconographic_elements": [],
+          "places": [],
+          "periods_dynasties": []
+        },
+        "tier_4_monetization": {
+          "access_level": "public",
+          "requires_license": false
+        }
+      },
+      "images": [
+        {
+          "filename": "fb_kaliya_004_slide1.jpeg",
+          "url": "https://images.unsplash.com/photo-1582510003544-4d00b7f74220?q=80&w=1200"
+        }
+      ]
+    }
+  ],
+  "total_images_saved": 17,
+  "saved_image_files": [
+    "fb_iconography_plate_1.jpeg",
+    "fb_iconography_plate_2.jpeg",
+    "fb_iconography_plate_3.jpeg",
+    "fb_iconography_plate_4.jpeg",
+    "fb_iconography_plate_5.jpeg",
+    "fb_iconography_plate_6.png",
+    "fb_iconography_plate_7.jpeg",
+    "fb_iconography_plate_8.png",
+    "fb_iconography_plate_9.jpeg",
+    "fb_iconography_plate_10.png",
+    "fb_iconography_plate_11.jpeg",
+    "fb_iconography_plate_12.png",
+    "fb_iconography_plate_13.jpeg",
+    "fb_iconography_plate_14.jpeg",
+    "fb_iconography_plate_15.jpeg",
+    "fb_nataraja_chola_001.jpeg",
+    "fb_krishna_kaliya_002.jpeg"
+  ]
+}

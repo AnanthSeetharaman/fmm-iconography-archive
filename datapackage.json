@@ -1,0 +1,1878 @@
+{
+  "profile": "tabular-data-package",
+  "name": "five-metal-masonry-iconography-archive",
+  "title": "Five Metal Masonry (FMM) - Digital Iconography Archive Data Package",
+  "description": "Open Knowledge Foundation (OKF) compliant tabular data package specifying the sacred Hindu iconography, Panchaloha bronze art curation, Shilpa Shastra taxonomies, and multi-tier Medallion database schemas of the Five Metal Masonry archive.",
+  "version": "1.0.0",
+  "homepage": "https://fivemetalmasonry.com",
+  "licenses": [
+    {
+      "name": "CC-BY-NC-4.0",
+      "title": "Creative Commons Attribution Non Commercial 4.0 International",
+      "path": "https://creativecommons.org/licenses/by-nc/4.0/"
+    }
+  ],
+  "keywords": [
+    "iconography",
+    "panchaloha",
+    "bronze",
+    "shilpa-shastra",
+    "ganesha",
+    "nataraja",
+    "chola-bronzes",
+    "mudra",
+    "asana",
+    "vahana",
+    "indic-studies",
+    "duckdb",
+    "medallion-architecture"
+  ],
+  "contributors": [
+    {
+      "title": "Five Metal Masonry Research & Heritage Team",
+      "role": "author"
+    },
+    {
+      "title": "Ananth Seetharaman",
+      "role": "curator"
+    }
+  ],
+  "resources": [
+    {
+      "name": "ai_metadata_proposals",
+      "title": "Ai Metadata Proposals",
+      "medallion_tier": "bronze",
+      "path": "data/ai_metadata_proposals.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "row_count": 9,
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true,
+              "unique": true
+            }
+          },
+          {
+            "name": "study_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "slide_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "slide_number",
+            "type": "integer",
+            "duckdb_type": "INTEGER",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "suggested_taxonomy_type",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "raw_suggested_term",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "mapped_term_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "confidence_score",
+            "type": "number",
+            "duckdb_type": "DOUBLE",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "evidence_snippet",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "review_status",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "curator_notes",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          }
+        ],
+        "primaryKey": "id"
+      }
+    },
+    {
+      "name": "audit_logs",
+      "title": "Audit Logs",
+      "medallion_tier": "gold",
+      "path": "data/audit_logs.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "row_count": 16,
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true,
+              "unique": true
+            }
+          },
+          {
+            "name": "table_name",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "record_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "action",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "user_email",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "user_role",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "changed_fields_json",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "previous_state_json",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "new_state_json",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "timestamp",
+            "type": "datetime",
+            "duckdb_type": "TIMESTAMP",
+            "constraints": {
+              "required": false
+            }
+          }
+        ],
+        "primaryKey": "id"
+      }
+    },
+    {
+      "name": "content_access_rules",
+      "title": "Content Access Rules",
+      "medallion_tier": "silver",
+      "path": "data/content_access_rules.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "row_count": 0,
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true,
+              "unique": true
+            }
+          },
+          {
+            "name": "study_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "required_tier",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "allow_preview",
+            "type": "boolean",
+            "duckdb_type": "BOOLEAN",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "allow_high_res_download",
+            "type": "boolean",
+            "duckdb_type": "BOOLEAN",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "is_blocked",
+            "type": "boolean",
+            "duckdb_type": "BOOLEAN",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "block_reason",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          }
+        ],
+        "primaryKey": "id"
+      }
+    },
+    {
+      "name": "dictionary_entries",
+      "title": "Dictionary Entries",
+      "medallion_tier": "silver",
+      "path": "data/dictionary_entries.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "row_count": 6,
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true,
+              "unique": true
+            }
+          },
+          {
+            "name": "slug",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "headword",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "iast_headword",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "part_of_speech",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "etymology",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "definition",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "extended_notes",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "duckdb_type": "TIMESTAMP",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "duckdb_type": "TIMESTAMP",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "created_by",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "updated_by",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          }
+        ],
+        "primaryKey": "id"
+      }
+    },
+    {
+      "name": "doc_ref_catalog",
+      "title": "Doc Ref Catalog",
+      "medallion_tier": "silver",
+      "path": "data/doc_ref_catalog.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "row_count": 5,
+      "schema": {
+        "fields": [
+          {
+            "name": "doc_ref",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true,
+              "unique": true
+            }
+          },
+          {
+            "name": "doc_name",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "corpus",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "section",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "author_or_tradition",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "language",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "applicability_to_iconography",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "duckdb_type": "TIMESTAMP",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "duckdb_type": "TIMESTAMP",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "created_by",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "updated_by",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          }
+        ],
+        "primaryKey": "doc_ref"
+      }
+    },
+    {
+      "name": "periods_dynasties",
+      "title": "Periods Dynasties",
+      "medallion_tier": "silver",
+      "path": "data/periods_dynasties.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "row_count": 0,
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "duckdb_type": "INTEGER",
+            "constraints": {
+              "required": true,
+              "unique": true
+            }
+          },
+          {
+            "name": "slug",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "time_span",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "region",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          }
+        ],
+        "primaryKey": "id"
+      }
+    },
+    {
+      "name": "places",
+      "title": "Places",
+      "medallion_tier": "silver",
+      "path": "data/places.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "row_count": 3,
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true,
+              "unique": true
+            }
+          },
+          {
+            "name": "slug",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "native_name",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "temple_name",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "deity_enshrined",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "tradition",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "town_city",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "district",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "state",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "country",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "notes",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          }
+        ],
+        "primaryKey": "id"
+      }
+    },
+    {
+      "name": "premium_download_requests",
+      "title": "Premium Download Requests",
+      "medallion_tier": "gold",
+      "path": "data/premium_download_requests.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "row_count": 0,
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true,
+              "unique": true
+            }
+          },
+          {
+            "name": "study_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "user_email",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "payment_method",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "transaction_ref",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "amount_inr",
+            "type": "number",
+            "duckdb_type": "DOUBLE",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "status",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "duckdb_type": "TIMESTAMP",
+            "constraints": {
+              "required": false
+            }
+          }
+        ],
+        "primaryKey": "id"
+      }
+    },
+    {
+      "name": "series",
+      "title": "Series",
+      "medallion_tier": "silver",
+      "path": "data/series.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "row_count": 19,
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "duckdb_type": "INTEGER",
+            "constraints": {
+              "required": true,
+              "unique": true
+            }
+          },
+          {
+            "name": "slug",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "scope",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "status",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "cover_image_url",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "sort_order",
+            "type": "integer",
+            "duckdb_type": "INTEGER",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "duckdb_type": "TIMESTAMP",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "duckdb_type": "TIMESTAMP",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "created_by",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "updated_by",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          }
+        ],
+        "primaryKey": "id"
+      }
+    },
+    {
+      "name": "slide_ocr_data",
+      "title": "Slide Ocr Data",
+      "medallion_tier": "bronze",
+      "path": "data/slide_ocr_data.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "row_count": 3,
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true,
+              "unique": true
+            }
+          },
+          {
+            "name": "slide_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "ocr_engine",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "language_tag",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "raw_ocr_output",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "normalized_text",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "word_count",
+            "type": "integer",
+            "duckdb_type": "INTEGER",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "confidence_avg",
+            "type": "number",
+            "duckdb_type": "DOUBLE",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "tokens_json",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          }
+        ],
+        "primaryKey": "id"
+      }
+    },
+    {
+      "name": "studies",
+      "title": "Studies",
+      "medallion_tier": "silver",
+      "path": "data/studies.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "row_count": 7,
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true,
+              "unique": true
+            }
+          },
+          {
+            "name": "slug",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "subtitle",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "study_number",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "series_id",
+            "type": "integer",
+            "duckdb_type": "INTEGER",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "content_type",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "access_level",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "status",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "summary_markdown",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "original_publication_date",
+            "type": "date",
+            "duckdb_type": "DATE",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "cover_image_url",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "total_slides",
+            "type": "integer",
+            "duckdb_type": "INTEGER",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "search_keywords",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "curator_notes",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "duckdb_type": "TIMESTAMP",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "duckdb_type": "TIMESTAMP",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "created_by",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "updated_by",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          }
+        ],
+        "primaryKey": "id"
+      }
+    },
+    {
+      "name": "study_slides",
+      "title": "Study Slides",
+      "medallion_tier": "bronze",
+      "path": "data/study_slides.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "row_count": 27,
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true,
+              "unique": true
+            }
+          },
+          {
+            "name": "study_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "slide_number",
+            "type": "integer",
+            "duckdb_type": "INTEGER",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "slide_title",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "image_url",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "thumbnail_url",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "caption",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "extracted_ocr_text",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "cleaned_text",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "visual_elements_summary",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "sort_order",
+            "type": "integer",
+            "duckdb_type": "INTEGER",
+            "constraints": {
+              "required": false
+            }
+          }
+        ],
+        "primaryKey": "id"
+      }
+    },
+    {
+      "name": "study_taxonomy_mappings",
+      "title": "Study Taxonomy Mappings",
+      "medallion_tier": "silver",
+      "path": "data/study_taxonomy_mappings.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "row_count": 20,
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true,
+              "unique": true
+            }
+          },
+          {
+            "name": "study_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "term_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "relevance_level",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "confidence_score",
+            "type": "number",
+            "duckdb_type": "DOUBLE",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "slide_numbers",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "curator_verified",
+            "type": "boolean",
+            "duckdb_type": "BOOLEAN",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "curator_notes",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          }
+        ],
+        "primaryKey": "id"
+      }
+    },
+    {
+      "name": "taxonomy_terms",
+      "title": "Taxonomy Terms",
+      "medallion_tier": "silver",
+      "path": "data/taxonomy_terms.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "row_count": 37,
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true,
+              "unique": true
+            }
+          },
+          {
+            "name": "taxonomy_type_id",
+            "type": "integer",
+            "duckdb_type": "INTEGER",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "parent_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "canonical_name",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "iast_name",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "slug",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "dictionary_entry_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "place_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "period_id",
+            "type": "integer",
+            "duckdb_type": "INTEGER",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "is_active",
+            "type": "boolean",
+            "duckdb_type": "BOOLEAN",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "display_order",
+            "type": "integer",
+            "duckdb_type": "INTEGER",
+            "constraints": {
+              "required": false
+            }
+          }
+        ],
+        "primaryKey": "id"
+      }
+    },
+    {
+      "name": "taxonomy_types",
+      "title": "Taxonomy Types",
+      "medallion_tier": "silver",
+      "path": "data/taxonomy_types.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "row_count": 6,
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "duckdb_type": "INTEGER",
+            "constraints": {
+              "required": true,
+              "unique": true
+            }
+          },
+          {
+            "name": "code",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          }
+        ],
+        "primaryKey": "id"
+      }
+    },
+    {
+      "name": "term_aliases",
+      "title": "Term Aliases",
+      "medallion_tier": "silver",
+      "path": "data/term_aliases.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "row_count": 72,
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true,
+              "unique": true
+            }
+          },
+          {
+            "name": "term_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "alias",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "alias_type",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "is_searchable",
+            "type": "boolean",
+            "duckdb_type": "BOOLEAN",
+            "constraints": {
+              "required": false
+            }
+          }
+        ],
+        "primaryKey": "id"
+      }
+    },
+    {
+      "name": "user_behavior_logs",
+      "title": "User Behavior Logs",
+      "medallion_tier": "gold",
+      "path": "data/user_behavior_logs.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "row_count": 66,
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true,
+              "unique": true
+            }
+          },
+          {
+            "name": "user_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "session_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "event_type",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "resource_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "event_payload_json",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "ip_address",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "user_agent",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "duckdb_type": "TIMESTAMP",
+            "constraints": {
+              "required": false
+            }
+          }
+        ],
+        "primaryKey": "id"
+      }
+    },
+    {
+      "name": "user_downloads",
+      "title": "User Downloads",
+      "medallion_tier": "gold",
+      "path": "data/user_downloads.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "row_count": 0,
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true,
+              "unique": true
+            }
+          },
+          {
+            "name": "user_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "study_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "slide_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "license_ref",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "resolution",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "ip_address",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "downloaded_at",
+            "type": "datetime",
+            "duckdb_type": "TIMESTAMP",
+            "constraints": {
+              "required": false
+            }
+          }
+        ],
+        "primaryKey": "id"
+      }
+    },
+    {
+      "name": "user_subscriptions",
+      "title": "User Subscriptions",
+      "medallion_tier": "gold",
+      "path": "data/user_subscriptions.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "row_count": 0,
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true,
+              "unique": true
+            }
+          },
+          {
+            "name": "user_id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "tier",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "status",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "billing_cycle",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "amount_inr",
+            "type": "number",
+            "duckdb_type": "DOUBLE",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "payment_due_amount",
+            "type": "number",
+            "duckdb_type": "DOUBLE",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "last_payment_date",
+            "type": "datetime",
+            "duckdb_type": "TIMESTAMP",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "next_billing_date",
+            "type": "datetime",
+            "duckdb_type": "TIMESTAMP",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "payment_method",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "duckdb_type": "TIMESTAMP",
+            "constraints": {
+              "required": false
+            }
+          }
+        ],
+        "primaryKey": "id"
+      }
+    },
+    {
+      "name": "users",
+      "title": "Users",
+      "medallion_tier": "gold",
+      "path": "data/users.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "row_count": 5,
+      "schema": {
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true,
+              "unique": true
+            }
+          },
+          {
+            "name": "email",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "full_name",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "avatar_url",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "role",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "google_sub",
+            "type": "string",
+            "duckdb_type": "VARCHAR",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "duckdb_type": "TIMESTAMP",
+            "constraints": {
+              "required": false
+            }
+          },
+          {
+            "name": "last_login_at",
+            "type": "datetime",
+            "duckdb_type": "TIMESTAMP",
+            "constraints": {
+              "required": false
+            }
+          }
+        ],
+        "primaryKey": "id"
+      }
+    }
+  ]
+}

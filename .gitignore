@@ -1,0 +1,52 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.class
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+.env
+.venv/
+env/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backup / temporary files
+*copy*.html
+*.bak
+*.tmp
+*.log
+
+# Duplicate DuckDB test files in backend root (active DB is app/backend/data/fmm_archive.duckdb)
+app/backend/fmm_archive.duckdb
+app/backend/fmm_medallion.duckdb
+
+.git_hf_backup/
+*.git_hf_backup

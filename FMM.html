@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Five Metal Masonry — Iconography Archive</title>
+<!-- Three.js CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<style>
+:root{
+  --ink:#171717; --muted:#6e6a63; --paper:#f4f0e8; --card:#fffdf8;
+  --line:#d8d0c3; --accent:#b75b34; --accent2:#243b35; --gold:#b58b4b;
+}
+*{box-sizing:border-box} body{margin:0;background:var(--paper);color:var(--ink);
+font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; overflow-x: hidden;}
+button{font:inherit}.shell{max-width:1440px;margin:auto;padding:24px 34px 60px; position: relative; z-index: 2;}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 0 22px;border-bottom:1px solid var(--line); position: relative; z-index: 10; flex-wrap: wrap; gap: 16px;}
+.brand{display:flex;align-items:center;gap:16px}.brand img{width:150px;height:auto}.brand small{display:block;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;font-size:10px}
+.nav{display:flex;gap:7px;align-items:center; flex-wrap: wrap;}.nav button{border:0;background:transparent;padding:10px 13px;border-radius:999px;cursor:pointer;color:#4f4a43; transition: 0.2s;}
+.nav button.active,.nav button:hover{background:var(--ink);color:white}.member{background:var(--accent)!important;color:white!important}
+
+/* Hero Section */
+.hero{display:grid;grid-template-columns:1.1fr 0.9fr;gap:28px;padding:60px 0 42px;align-items:center; position: relative;}
+.eyebrow{color:var(--accent);font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase}
+h1{font-family:Georgia,serif;font-size:clamp(40px,6vw,82px);line-height:.92;font-weight:500;margin:12px 0 20px;max-width:800px}
+.hero p{font-size:18px;line-height:1.65;color:#5c574f;max-width:700px}
+
+/* Archive 3D Container */
+.hero-side{border-left:1px solid var(--line);padding-left:28px; height: 380px; position: relative; display:flex; align-items:center; justify-content:center;}
+#archive-canvas-container{width:100%; height:100%; cursor: grab; mix-blend-mode: multiply;}
+#archive-canvas-container:active{cursor: grabbing;}
+
+.search{background:var(--ink);padding:22px;border-radius:18px;display:flex;gap:12px;margin:4px 0 34px; position: relative; z-index: 2; flex-wrap: wrap;}
+.search input{flex:1;min-width:200px;border:0;border-radius:11px;padding:16px 18px;font-size:16px;outline:none}.search select{border:0;border-radius:11px;padding:0 14px;background:white}.search button{border:0;border-radius:11px;background:var(--accent);color:white;padding:0 24px;font-weight:700; cursor:pointer;}
+
+.section-head{display:flex;justify-content:space-between;align-items:end;margin:35px 0 17px; flex-wrap: wrap; gap: 10px;}.section-head h2{font-family:Georgia,serif;font-size:31px;font-weight:500;margin:0}.section-head span{color:var(--muted);font-size:13px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.chip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:8px 13px;color:#625d54;cursor:pointer; font-size: 13px;}.chip.active,.chip:hover{background:white;border-color:#aaa}
+
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px; position: relative; z-index: 2;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:17px;overflow:hidden;transition:.3s cubic-bezier(0.2, 0.8, 0.2, 1);}.card:hover{transform:translateY(-5px);box-shadow:0 15px 35px #00000015}
+.thumb{height:220px;position:relative;overflow:hidden;background:linear-gradient(135deg,#d6c6ad,#806b55)} 
+.thumb:before{content:"";position:absolute;inset:12% 17%;border:1px solid #ffffff66;transform:rotate(-12deg)}.thumb:after{content:"ARCHIVE";position:absolute;right:14px;top:14px;font-size:9px;letter-spacing:.2em;color:white;border:1px solid #ffffff88;padding:5px 7px;border-radius:5px}
+.thumb.t2{background:linear-gradient(135deg,#253d38,#a67b4a)}.thumb.t3{background:linear-gradient(135deg,#171717,#78604c)}.thumb.t4{background:linear-gradient(135deg,#bca889,#34312c)}.thumb.t5{background:linear-gradient(135deg,#5e3327,#d1a16b)}.thumb.t6{background:linear-gradient(135deg,#2d3130,#a8a08d)}
+.glyph{position:absolute;inset:0;display:grid;place-items:center;font-family:Georgia,serif;font-size:92px;color:#fff8e8cc;text-shadow:0 5px 20px #0006}
+.card-body{padding:19px}.meta{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.1em}.card h3{font-family:Georgia,serif;font-size:25px;font-weight:500;margin:10px 0 8px}.card p{color:#69635a;font-size:13px;line-height:1.55;margin:0 0 15px}.tag{font-size:10px;padding:6px 8px;border-radius:5px;background:#eee7da;color:#554f46}.locked{background:#e7ddd5;color:#7d3f27}
+
+.page{display:none; animation: fadeIn 0.4s ease forwards;}.page.active{display:block}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* About Page 3D Container */
+.detail{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:35px}.detail-visual{min-height:560px;border-radius:22px;background:linear-gradient(145deg,#171717,#2a201a);display:grid;place-items:center; overflow:hidden; position: relative;}
+.detail-copy{padding:20px}.detail-copy h1{font-size:clamp(36px, 5vw, 58px); margin: 10px 0;}.detail-copy .lead{font-size:18px;line-height:1.65;color:#5d584f}.facts{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line);margin-top:28px}.fact{padding:16px 0;border-bottom:1px solid var(--line)}.fact b{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:5px}
+
+.membership{margin-top:40px;background:var(--accent2);color:white;border-radius:24px;padding:44px;display:grid;grid-template-columns:1fr 320px;gap:40px}.membership h2{font:clamp(32px, 4vw, 46px) Georgia;margin:0 0 12px}.membership p{color:#d5ded8;line-height:1.7}.price{background:#f7f2e9;color:var(--ink);border-radius:18px;padding:25px}.price .amount{font:48px Georgia}.price button{width:100%;border:0;background:var(--accent);color:white;padding:14px;border-radius:10px;font-weight:700;margin-top:18px; cursor:pointer;}
+.footer{border-top:1px solid var(--line);margin-top:65px;padding-top:25px;display:flex;justify-content:space-between;color:var(--muted);font-size:12px; flex-wrap: wrap; gap: 10px;}
+
+/* --- MOBILE OPTIMIZATION --- */
+@media(max-width:900px){
+  .hero, .detail, .membership { grid-template-columns: 1fr; }
+  .grid { grid-template-columns: 1fr 1fr; }
+  .hero-side { border-left: 0; border-top: 1px solid var(--line); padding: 20px 0; height: 320px; }
+  .detail-visual { min-height: 400px; }
+  .membership { padding: 30px; gap: 25px; }
+}
+@media(max-width:620px){
+  .shell { padding: 18px 20px; }
+  .topbar { flex-direction: column; align-items: flex-start; }
+  .nav { width: 100%; justify-content: space-between; gap: 5px; }
+  .nav button { flex: 1; padding: 12px 5px; font-size: 13px; text-align: center; }
+  .grid { grid-template-columns: 1fr; }
+  .facts { grid-template-columns: 1fr; }
+  .search { flex-direction: column; padding: 18px; }
+  .search input, .search select, .search button { height: 48px; width: 100%; }
+  .hero { padding-top: 25px; }
+  .detail-visual { min-height: 320px; }
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+<header class="topbar">
+  <div class="brand">
+    <div style="width:150px; height: 30px; background: var(--ink); mask: url('data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 20\'><text x=\'0\' y=\'15\' font-family=\'serif\' font-size=\'15\'>FIVE METAL MASONRY</text></svg>') no-repeat; -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 20\'><text x=\'0\' y=\'15\' font-family=\'serif\' font-size=\'15\'>F M M</text></svg>') no-repeat;"></div>
+    <div><small>Digital Archive</small><strong>ICONOGRAPHY STUDIES</strong></div>
+  </div>
+  <nav class="nav">
+    <button class="active" data-page="home">Archive</button>
+    <button data-page="about">About</button>
+    <button data-page="member" class="member">Member Access</button>
+  </nav>
+</header>
+
+<main>
+<section id="home" class="page active">
+  <div class="hero">
+    <div>
+      <div class="eyebrow">Five Metal Masonry · Independent Archive</div>
+      <h1>Symbols.<br>Objects.<br>Stories.</h1>
+      <p>A permanent, searchable home for Five Metal Masonry's iconography studies — designed for serious enthusiasts, students and readers beyond the limits of social media.</p>
+    </div>
+    <!-- Archive WebGL Centerpiece -->
+    <div class="hero-side">
+        <div id="archive-canvas-container"></div>
+    </div>
+  </div>
+
+  <div class="search"><input id="searchInput" placeholder="Search the iconography archive…"><select id="typeFilter"><option>All studies</option><option>Public</option><option>Member only</option></select><button onclick="filterCards()">Search</button></div>
+
+  <div class="section-head"><h2>Featured studies</h2><span>Curated entry points into the archive</span></div>
+  <div class="filters"><button class="chip active">All</button><button class="chip">Objects</button><button class="chip">Symbols</button><button class="chip">Architecture</button><button class="chip">Material Culture</button><button class="chip">History</button></div>
+
+  <div class="grid" id="cards">
+    <article class="card" data-title="The Sacred Vessel" data-type="public"><div class="thumb"><div class="glyph">◈</div></div><div class="card-body"><div class="meta"><span>Study 001</span><span>Public</span></div><h3>The Sacred Vessel</h3><p>An illustrated iconography study connecting object, ritual and visual language.</p><span class="tag">Objects</span></div></article>
+    <article class="card" data-title="Threshold & Gate" data-type="member"><div class="thumb t2"><div class="glyph">⌂</div></div><div class="card-body"><div class="meta"><span>Study 002</span><span>Member</span></div><h3>Threshold & Gate</h3><p>A deeper visual reading of entrances, boundaries and symbolic transition.</p><span class="tag locked">Member only</span></div></article>
+    <article class="card" data-title="The Hand Motif" data-type="public"><div class="thumb t3"><div class="glyph">✦</div></div><div class="card-body"><div class="meta"><span>Study 003</span><span>Public</span></div><h3>The Hand Motif</h3><p>Tracing a recurring sign through images, objects and cultural contexts.</p><span class="tag">Symbols</span></div></article>
+    <article class="card" data-title="Stone Memory" data-type="member"><div class="thumb t4"><div class="glyph">⬡</div></div><div class="card-body"><div class="meta"><span>Study 004</span><span>Member</span></div><h3>Stone Memory</h3><p>Material, surface and the visual memory carried by architectural fragments.</p><span class="tag locked">Member only</span></div></article>
+    <article class="card" data-title="The Guardian Figure" data-type="public"><div class="thumb t5"><div class="glyph">♜</div></div><div class="card-body"><div class="meta"><span>Study 005</span><span>Public</span></div><h3>The Guardian Figure</h3><p>A study of protective figures and their position within built environments.</p><span class="tag">History</span></div></article>
+    <article class="card" data-title="Geometry of Belief" data-type="member"><div class="thumb t6"><div class="glyph">△</div></div><div class="card-body"><div class="meta"><span>Study 006</span><span>Member</span></div><h3>Geometry of Belief</h3><p>How repeated geometry becomes a carrier of meaning across visual traditions.</p><span class="tag locked">Member only</span></div></article>
+  </div>
+</section>
+
+<section id="about" class="page">
+  <div class="detail">
+    <!-- About WebGL Element -->
+    <div class="detail-visual" id="about-canvas-container"></div>
+    <div class="detail-copy">
+      <div class="eyebrow">About the archive</div><h1>A permanent home for the studies.</h1>
+      <p class="lead">The brief defines the archive as a dedicated, searchable and sustainable repository for iconography studies currently published primarily through social media.</p>
+      <div class="facts">
+        <div class="fact"><b>Audience</b>Serious enthusiasts, students and interested readers</div>
+        <div class="fact"><b>Independence</b>Separate from the existing Shopify ecommerce store</div>
+        <div class="fact"><b>Publishing</b>WordPress dashboard, without coding</div>
+        <div class="fact"><b>Media</b>Image-heavy studies with responsive media management</div>
+        <div class="fact"><b>Access</b>Public and member-only material</div>
+        <div class="fact"><b>Growth</b>Hosting/storage can be upgraded as usage grows</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="member" class="page">
+  <div class="membership">
+    <div><div class="eyebrow">Member archive</div><h2>Go deeper into the collection.</h2><p>Member access is designed around a straightforward annual model, with ARMember handling registration, access restriction, plan management and Razorpay integration. Expiry, cancellation and failed-payment rules can be automated.</p><p>International recurring Razorpay transactions are identified in the technology brief as an end-to-end test item before launch.</p></div>
+    <div class="price"><div class="eyebrow">Annual access</div><div class="amount">₹—</div><p>Pricing to be defined separately.</p><button>Become a Member</button></div>
+  </div>
+</section>
+</main>
+
+<footer class="footer"><span>Five Metal Masonry · Iconography Archive</span><span>Wireframe concept · Mobile Optimized WebGL</span></footer>
+</div>
+
+<script>
+// --- UI Navigation Logic ---
+const pages = document.querySelectorAll('.page');
+let aboutSceneInitialized = false;
+
+document.querySelectorAll('[data-page]').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active'); 
+  pages.forEach(p => p.classList.remove('active'));
+  document.getElementById(btn.dataset.page).classList.add('active'); 
+  window.scrollTo({top: 0, behavior: 'smooth'});
+
+  // Lazy-load the About scene to prevent 0x0 container size issues
+  if (btn.dataset.page === 'about' && !aboutSceneInitialized) {
+      setTimeout(initAbout3D, 50); // slight delay ensures container is rendered
+      aboutSceneInitialized = true;
+  }
+}));
+
+document.querySelectorAll('.chip').forEach(chip => chip.addEventListener('click', () => {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active')); 
+  chip.classList.add('active');
+  const term = chip.textContent.toLowerCase(); 
+  document.querySelectorAll('#cards .card').forEach(c => {
+    c.style.display = (term === 'all' || c.innerText.toLowerCase().includes(term)) ? 'block' : 'none';
+  });
+}));
+
+function filterCards() {
+ const q = document.getElementById('searchInput').value.toLowerCase();
+ const type = document.getElementById('typeFilter').value;
+ document.querySelectorAll('#cards .card').forEach(c => {
+   const okQ = c.dataset.title.toLowerCase().includes(q);
+   const okT = type === 'All studies' || (type === 'Public' && c.dataset.type === 'public') || (type === 'Member only' && c.dataset.type === 'member');
+   c.style.display = (okQ && okT) ? 'block' : 'none';
+ });
+}
+
+// --- Three.js Logic 1: Archive Page Centerpiece (Panchaloha Sacred Knot) ---
+function initArchive3D() {
+    const container = document.getElementById('archive-canvas-container');
+    if (!container) return;
+    
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.1, 100);
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    const group = new THREE.Group();
+
+    // Panchaloha Bronze Material
+    const bronzeMat = new THREE.MeshStandardMaterial({
+        color: 0xcb7a43, 
+        roughness: 0.25,
+        metalness: 0.9,
+    });
+
+    const knotGeo = new THREE.TorusKnotGeometry(1.3, 0.15, 150, 24);
+    const knot = new THREE.Mesh(knotGeo, bronzeMat);
+    group.add(knot);
+
+    const frameGeo = new THREE.IcosahedronGeometry(2.4, 0);
+    const frameMat = new THREE.MeshStandardMaterial({
+        color: 0xa99b86,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.6
+    });
+    const frame = new THREE.Mesh(frameGeo, frameMat);
+    group.add(frame);
+
+    scene.add(group);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+    scene.add(ambientLight);
+
+    const pointLight1 = new THREE.PointLight(0xfff0dd, 4, 20);
+    pointLight1.position.set(5, 5, 5);
+    scene.add(pointLight1);
+
+    const pointLight2 = new THREE.PointLight(0x8a6a4a, 3, 20); 
+    pointLight2.position.set(-5, -5, -2);
+    scene.add(pointLight2);
+
+    camera.position.z = 7;
+
+    let targetX = 0;
+    let targetY = 0;
+    
+    // Support touch on mobile for interaction
+    container.addEventListener('mousemove', (e) => { updateRotationTarget(e.clientX, e.clientY); });
+    container.addEventListener('touchmove', (e) => { 
+        if(e.touches.length > 0) { updateRotationTarget(e.touches[0].clientX, e.touches[0].clientY); }
+    }, {passive: true});
+
+    function updateRotationTarget(clientX, clientY) {
+        const rect = container.getBoundingClientRect();
+        const x = ((clientX - rect.left) / container.clientWidth) * 2 - 1;
+        const y = -((clientY - rect.top) / container.clientHeight) * 2 + 1;
+        targetX = x * 0.4;
+        targetY = y * 0.4;
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        knot.rotation.x += 0.003;
+        knot.rotation.y += 0.005;
+        frame.rotation.x -= 0.001;
+        frame.rotation.y -= 0.002;
+        group.rotation.y += (targetX - group.rotation.y) * 0.05;
+        group.rotation.x += (targetY - group.rotation.x) * 0.05;
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+        if (container.clientWidth > 0) {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+    });
+}
+initArchive3D(); 
+
+// --- Three.js Logic 2: About Page Detail Artifact (Dark Theme) ---
+function initAbout3D() {
+    const container = document.getElementById('about-canvas-container');
+    if (!container || container.clientWidth === 0) return;
+    
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    
+    // Clear any existing canvas if function gets called twice
+    container.innerHTML = ''; 
+    container.appendChild(renderer.domElement);
+
+    const geoInner = new THREE.OctahedronGeometry(1.6);
+    const matInner = new THREE.MeshStandardMaterial({ color: 0xb75b34, roughness: 0.2, metalness: 0.9 });
+    const meshInner = new THREE.Mesh(geoInner, matInner);
+
+    const geoOuter = new THREE.IcosahedronGeometry(2.4);
+    const matOuter = new THREE.MeshStandardMaterial({ color: 0xd8d0c3, wireframe: true, transparent: true, opacity: 0.4 });
+    const meshOuter = new THREE.Mesh(geoOuter, matOuter);
+
+    scene.add(meshInner);
+    scene.add(meshOuter);
+
+    const pointLight = new THREE.PointLight(0xffffff, 2);
+    pointLight.position.set(5, 5, 5);
+    const ambientLight = new THREE.AmbientLight(0x404040, 2);
+    scene.add(pointLight, ambientLight);
+
+    camera.position.z = 7;
+
+    let targetRotationX = 0;
+    let targetRotationY = 0;
+
+    container.addEventListener('mousemove', (e) => { updateAboutTarget(e.clientX, e.clientY); });
+    container.addEventListener('touchmove', (e) => { 
+        if(e.touches.length > 0) updateAboutTarget(e.touches[0].clientX, e.touches[0].clientY); 
+    }, {passive: true});
+
+    function updateAboutTarget(clientX, clientY) {
+        const rect = container.getBoundingClientRect();
+        const x = ((clientX - rect.left) / container.clientWidth) * 2 - 1;
+        const y = -((clientY - rect.top) / container.clientHeight) * 2 + 1;
+        targetRotationY = x * 0.5;
+        targetRotationX = y * 0.5;
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        meshInner.rotation.x += 0.005;
+        meshInner.rotation.y += 0.008;
+        meshOuter.rotation.x -= 0.002;
+        meshOuter.rotation.y -= 0.003;
+        meshInner.rotation.y += (targetRotationY - meshInner.rotation.y) * 0.05;
+        meshInner.rotation.x += (targetRotationX - meshInner.rotation.x) * 0.05;
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+        if (container.clientWidth > 0) {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+    });
+}
+</script>
+</body>
+</html>

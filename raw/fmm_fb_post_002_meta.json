@@ -1,0 +1,57 @@
+{
+  "post_id": "fmm_fb_post_002",
+  "title": "Naṭarāja: Cosmic Dance Iconometry & Śilpa Proportions",
+  "caption": "Iconometric proportions (Tālamāna) of the 18-inch Chola-style Naṭarāja bronze. Features the Ananda Tandava pose, Tiruvasi aureole ring, Apasmara dwarf crushed underfoot, and Abhaya mudra gesture.",
+  "date": "2026-09-08",
+  "source_url": "https://www.facebook.com/p/Five-Metal-Masonry-61555995556848/",
+  "taxonomy_classification": {
+    "divinities": [
+      "Śiva"
+    ],
+    "forms": [
+      "Naṭarāja"
+    ],
+    "iconographic_elements": [
+      "Abhaya Mudrā"
+    ],
+    "places": [],
+    "periods_dynasties": [
+      "Chola"
+    ]
+  },
+  "tier_mappings": {
+    "tier_1_catalog": {
+      "series": "Majors Iconography",
+      "study_slug": "fmm_fb_post_002"
+    },
+    "tier_2_ocr": {
+      "ocr_engine": "Windows.Media.Ocr",
+      "diacritic_repaired": true
+    },
+    "tier_3_knowledge_graph": {
+      "divinities": [
+        "Śiva"
+      ],
+      "forms": [
+        "Naṭarāja"
+      ],
+      "iconographic_elements": [
+        "Abhaya Mudrā"
+      ],
+      "places": [],
+      "periods_dynasties": [
+        "Chola"
+      ]
+    },
+    "tier_4_monetization": {
+      "access_level": "public",
+      "requires_license": false
+    }
+  },
+  "images": [
+    {
+      "filename": "fb_nataraja_002_slide1.jpeg",
+      "url": "https://images.unsplash.com/photo-1599707367072-cd6ada2bc375?q=80&w=1200"
+    }
+  ]
+}
