@@ -7,3 +7,4 @@ numpy>=1.26.0
 google-cloud-vision>=3.7.0
 google-genai>=1.0.0
 pillow>=10.0.0
+razorpay>=1.4.1

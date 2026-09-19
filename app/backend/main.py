@@ -33,6 +33,7 @@ from auth_service import (
     upsert_user,
     get_current_user_from_request
 )
+from razorpay_service import create_subscription_order, verify_payment_signature
 
 # Initialize FastAPI App
 app = FastAPI(
@@ -556,6 +557,81 @@ def api_auth_logout():
     response = JSONResponse({"status": "success", "message": "Logged out successfully"})
     response.delete_cookie(SESSION_COOKIE_NAME)
     return response
+
+# ----------------------------------------------------------------------------
+# PAYMENT & SUBSCRIPTION ENDPOINTS (Razorpay)
+# ----------------------------------------------------------------------------
+
+class PaymentVerifyRequest(BaseModel):
+    razorpay_payment_id: str
+    razorpay_order_id: str
+    razorpay_signature: str
+
+@app.post("/api/payment/create-order")
+def api_create_order(request: Request):
+    """Creates a Razorpay order for Scholar Pro upgrade."""
+    user = get_current_user_from_request(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    # Hardcoding Scholar Pro Annual price for now (can be fetched from T_SYST_SETTINGS)
+    amount_inr = 499.0
+    
+    order = create_subscription_order(amount_inr, user["sub"])
+    if "error" in order:
+        raise HTTPException(status_code=500, detail=order["error"])
+        
+    from config import RAZORPAY_KEY_ID
+    return {
+        "order_id": order.get("id"), 
+        "amount": order.get("amount"), 
+        "currency": order.get("currency"),
+        "key_id": RAZORPAY_KEY_ID
+    }
+
+@app.post("/api/payment/verify")
+def api_verify_payment(payload: PaymentVerifyRequest, request: Request):
+    """Verifies payment and upgrades user tier in DB."""
+    user = get_current_user_from_request(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+        
+    is_valid = verify_payment_signature(
+        payload.razorpay_payment_id,
+        payload.razorpay_order_id,
+        payload.razorpay_signature
+    )
+    
+    if not is_valid:
+        raise HTTPException(status_code=400, detail="Invalid payment signature")
+        
+    user_id = user["sub"]
+    
+    # Update Subscription in Database
+    conn = get_db()
+    try:
+        # Generate new subscription ID if needed or update existing
+        sub_id = f"sub_{uuid.uuid4().hex[:12]}"
+        
+        # Check if user already has a row
+        res = conn.execute("SELECT id FROM user_subscriptions WHERE user_id = ?", (user_id,)).fetchone()
+        if res:
+            conn.execute("""
+                UPDATE user_subscriptions 
+                SET tier = 'scholar_pro', status = 'active', payment_method = 'razorpay', 
+                    last_payment_date = CURRENT_TIMESTAMP, amount_inr = 499.0 
+                WHERE user_id = ?
+            """, (user_id,))
+        else:
+            conn.execute("""
+                INSERT INTO user_subscriptions 
+                (id, user_id, tier, status, amount_inr, payment_method, last_payment_date) 
+                VALUES (?, ?, 'scholar_pro', 'active', 499.0, 'razorpay', CURRENT_TIMESTAMP)
+            """, (sub_id, user_id))
+            
+        return {"status": "success", "message": "Upgraded to Scholar Pro successfully!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ----------------------------------------------------------------------------
 # 1. SCHOLAR SEARCH & DISCOVERY ENDPOINTS

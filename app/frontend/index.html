@@ -64,6 +64,10 @@
 
   <!-- Three.js CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  
+  <!-- Razorpay Checkout -->
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  
   <link rel="stylesheet" href="styles.css?v=12">
 </head>
 
@@ -1786,6 +1790,12 @@
                 new
                 studies</li>
             </ul>
+            
+            <div class="apple-tier-cta">
+              <button class="apple-btn apple-btn-fill" id="memberTabPayBtn" onclick="initiateRazorpayPayment();" style="background-color: #B58B4B; color: #fff; width: 100%;">
+                Upgrade to Scholar Pro
+              </button>
+            </div>
 
           </div>
 
@@ -2210,7 +2220,7 @@
 
   <script src="assets/gallery_3d.js"></script>
   <script src="assets/hero_3d_iconography.js?v=3"></script>
-  <script src="app.js?v=18"></script>
+  <script src="app.js?v=21"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       if (window.FMMHeroIconography3D) {
@@ -2428,10 +2438,15 @@
 
         <div style="display:flex; flex-direction:column; gap:10px;">
           <button class="btn-primary btn-gold" id="gateModalPayBtn"
+            onclick="initiateRazorpayPayment();"
+            style="width:100%; justify-content:center; padding:14px; font-size:14px; margin-bottom: 8px;">
+            <span><img src="assets/icons/padma-scholar.svg" class="fmm-icon" alt="" /></span> Upgrade to Scholar Pro (₹499/yr)
+          </button>
+          
+          <button class="btn-primary" 
             onclick="closeModal('subscriptionGateModal'); openAuthModal();"
             style="width:100%; justify-content:center; padding:14px; font-size:14px;">
-            <span><img src="assets/icons/padma-scholar.svg" class="fmm-icon" alt="" /></span> Start 30-Day Scholar Pro
-            Trial (Instant Access)
+            <span><img src="assets/icons/sthapati-chisel.svg" class="fmm-icon" alt="" /></span> Start 30-Day Free Trial
           </button>
           <button class="btn-secondary" onclick="closeModal('subscriptionGateModal'); openAuthModal();"
             style="width:100%; justify-content:center; padding:12px; font-size:13.5px;">

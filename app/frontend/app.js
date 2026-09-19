@@ -234,6 +234,17 @@ document.addEventListener("DOMContentLoaded", () => {
       sessionStorage.removeItem("fmm_pending_toast");
       setTimeout(() => showToast(pendingMsg), 300);
     }
+    
+    // Auto-trigger Razorpay if it was pending before login
+    const pendingRazorpay = sessionStorage.getItem("fmm_pending_razorpay");
+    if (pendingRazorpay) {
+      sessionStorage.removeItem("fmm_pending_razorpay");
+      setTimeout(() => {
+        if (state.currentUser && state.currentUser.id) {
+          initiateRazorpayPayment();
+        }
+      }, 500);
+    }
   } catch (e) {}
 });
 
@@ -619,20 +630,23 @@ function updateMemberTierHighlights() {
     // Guest state
     const guestBtn = guestCard.querySelector(".apple-tier-cta button");
     if (guestBtn) { guestBtn.textContent = "Current Access"; guestBtn.disabled = true; }
-  } else if (state.currentUser.has_active_sub || state.currentUser.role === "admin" || state.currentUser.role === "curator") {
-    // Pro/Admin/Trial state
-    const isTrial = state.currentUser.subscription_tier === "trial_member" || state.currentUser.role === "scholar";
+  } else if (state.currentUser.subscription_tier === "scholar_pro") {
+    // Pro state
     const proBtn = proCard.querySelector(".apple-tier-cta button");
     if (proBtn) {
-      proBtn.textContent = isTrial ? "Trial Active" : "Active";
+      proBtn.textContent = "Active";
       proBtn.disabled = true;
       proBtn.className = "apple-btn apple-btn-outline";
     }
-    proCard.style.outline = isTrial ? "2px solid var(--gold)" : "2px solid var(--bronze)";
+    proCard.style.outline = "2px solid var(--bronze)";
   } else {
-    // Scholar (free account) state
+    // Scholar / Trial / Admin state (can still upgrade)
+    const isTrial = state.currentUser.subscription_tier === "trial_member";
     const schBtn = scholarCard.querySelector(".apple-tier-cta button");
-    if (schBtn) { schBtn.textContent = "Current Plan"; schBtn.disabled = true; }
+    if (schBtn) { 
+      schBtn.textContent = isTrial ? "Trial Active" : "Current Plan"; 
+      schBtn.disabled = true; 
+    }
     scholarCard.style.outline = "2px solid var(--bronze)";
   }
 }
@@ -4562,5 +4576,96 @@ function updateErDiagramCounts(telemetry) {
   for (const [id, val] of Object.entries(countsMap)) {
     const el = document.getElementById(id);
     if (el && val !== undefined) el.textContent = `${val}`;
+  }
+}
+
+// ============================================================================
+// RAZORPAY INTEGRATION
+// ============================================================================
+
+async function initiateRazorpayPayment() {
+  if (!state.currentUser || !state.currentUser.id) {
+    sessionStorage.setItem("fmm_pending_razorpay", "true");
+    alert("Please sign in first to upgrade to Scholar Pro.");
+    openAuthModal();
+    return;
+  }
+  
+  const btn = document.getElementById("gateModalPayBtn");
+  if (btn) btn.innerHTML = `<span><img src="assets/icons/padma-scholar.svg" class="fmm-icon" alt="" /></span> Processing...`;
+
+  try {
+    // 1. Create Order on Backend
+    const response = await fetch(`${API_BASE}/api/payment/create-order`, {
+      method: "POST"
+    });
+    
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.detail || "Failed to create order");
+    }
+    
+    const orderData = await response.json();
+    
+    // 2. Initialize Razorpay Checkout
+    const options = {
+      key: orderData.key_id, 
+      amount: orderData.amount, 
+      currency: orderData.currency,
+      name: "Five Metal Masonry",
+      description: "Scholar Pro Upgrade",
+      image: "assets/icons/5mm_website_logo.avif",
+      order_id: orderData.order_id,
+      handler: async function (response) {
+        // 3. Verify Payment Signature on Backend
+        try {
+          const verifyRes = await fetch(`${API_BASE}/api/payment/verify`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature
+            })
+          });
+          
+          if (!verifyRes.ok) {
+            throw new Error("Payment verification failed");
+          }
+          
+          alert("Payment Successful! Welcome to Scholar Pro.");
+          closeModal("subscriptionGateModal");
+          // Refresh user session state
+          await checkSession();
+          window.location.reload();
+          
+        } catch (verifyErr) {
+          console.error("Verification error:", verifyErr);
+          alert("Payment was successful but verification failed. Please contact support.");
+        }
+      },
+      prefill: {
+        name: state.currentUser.full_name || "Scholar",
+        email: state.currentUser.email || ""
+      },
+      theme: {
+        color: "#B58B4B"
+      }
+    };
+    
+    const rzp = new window.Razorpay(options);
+    rzp.on('payment.failed', function (response){
+      console.error("Payment Failed", response.error);
+      alert("Payment Failed: " + response.error.description);
+    });
+    rzp.open();
+    
+  } catch (error) {
+    console.error("Payment initiation error:", error);
+    alert("Could not start payment process: " + error.message);
+  } finally {
+    if (btn) btn.innerHTML = `<span><img src="assets/icons/padma-scholar.svg" class="fmm-icon" alt="" /></span> Upgrade to Scholar Pro (₹499/yr)`;
   }
 }

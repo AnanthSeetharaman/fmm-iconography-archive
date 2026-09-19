@@ -26,6 +26,10 @@ GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "GOCSPX-SxijM9v8a2
 JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "fmm_archival_sacred_secret_key_2026_gcp")
 SESSION_COOKIE_NAME = "fmm_auth_token"
 
+# Razorpay Configuration
+RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "rzp_test_TdycTlhey80HVM")
+RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "Wr8gZk9Vft5dDAS1wRwxdAVe")
+
 # LLM & Vision Model Configuration
 LLM_MODEL = os.environ.get("LLM_MODEL", "gemini-2.5-flash")
 LLM_LODEL = LLM_MODEL  # Compatibility alias
