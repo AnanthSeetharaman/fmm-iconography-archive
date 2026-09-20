@@ -499,40 +499,28 @@
             <div class="upload-card-box" id="ocrDropzone" style="cursor:pointer;">
               <div class="upload-icon"><img src="assets/icons/silpa-camera.svg" class="fmm-icon"
                   style="width:44px; height:44px;" alt="Camera" /></div>
-              <h4 style="font-family:var(--font-serif); font-size:20px; margin-bottom:6px;">Drop Carousel Slide Image
-                Here</h4>
-              <p style="color:var(--muted); font-size:13px;">Supports JPEG, PNG, WebP · Automatically stored in
-                /storage/images/</p>
-              <input type="file" id="ocrFileInput" accept="image/*" style="display:none;">
+              <h4 style="font-family:var(--font-serif); font-size:20px; margin-bottom:6px;">Drop Carousel Slide Image(s) Here</h4>
+              <p style="color:var(--muted); font-size:13px;">Supports JPEG, PNG, WebP · Multi-file batch upload (Select Plate 1, 2, 3...) · Automatically stored in /storage/images/</p>
+              <input type="file" id="ocrFileInput" accept="image/*" multiple style="display:none;">
 
               <div id="ocrUploadPrompt" style="margin-top:14px;"></div>
-
-              <!-- <div style="margin-top:14px; width:100%;">
-                <span
-                  style="font-size:12px; font-weight:700; color:var(--ink-soft); display:block; margin-bottom:6px;">Test
-                  with Curated Archival Archetypes:</span>
-                <div class="sample-archetypes-row">
-                  <button class="archetype-btn" id="sampleBtnMudra" type="button">
-                    <img src="assets/icons/mudra-hand.svg" class="fmm-icon" style="width:14px; height:14px;" alt="" />
-                    Sample: Shikhara Mudra (Hand Gesture)
-                  </button>
-                  <button class="archetype-btn" id="sampleBtn1" type="button">
-                    <img src="assets/icons/grantha-lexicon.svg" class="fmm-icon" style="width:14px; height:14px;"
-                      alt="" /> Sample: Ganesha Intro
-                  </button>
-                  <button class="archetype-btn" id="sampleBtn2" type="button">
-                    <img src="assets/icons/kalpavriksha-tree.svg" class="fmm-icon" style="width:14px; height:14px;"
-                      alt="" /> Sample: Asina &amp; Vahana
-                  </button>
-                </div> -->
             </div>
 
             <!-- Preview Stage -->
             <div class="preview-stage-card" id="ocrPreviewStage" style="display:none; margin-top:20px;">
+              <!-- Batch Queue Strip -->
+              <div id="ocrBatchStrip" style="display:none; margin-bottom:14px; background:var(--paper-sunken); padding:10px 12px; border-radius:var(--radius-sm); border:1px solid var(--line);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                  <span style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--accent); letter-spacing:0.06em;">Batch Plates Ingestion Queue:</span>
+                  <span id="ocrBatchCountBadge" class="badge" style="background:rgba(181,139,75,0.15); color:var(--accent); font-size:11px;">1 plate</span>
+                </div>
+                <div id="ocrBatchThumbnails" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:4px;"></div>
+              </div>
+
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <h4 style="font-family:var(--font-serif); font-size:18px; margin:0;">Visual Plate Inspection</h4>
+                <h4 style="font-family:var(--font-serif); font-size:18px; margin:0;" id="ocrPlateHeader">Visual Plate Inspection</h4>
                 <span id="ocrPlateBadge" class="badge"
-                  style="background:var(--paper-sunken); font-size:11px; color:var(--ink-soft);">Canonical Plate</span>
+                  style="background:var(--paper-sunken); font-size:11px; color:var(--ink-soft);">Plate 1</span>
               </div>
               <div class="stage-img-wrapper" style="position:relative;">
                 <img id="ocrPreviewImg" src="" alt="OCR Preview"

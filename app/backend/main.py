@@ -1367,6 +1367,9 @@ class ApproveSlideRequest(BaseModel):
     approved_proposals: List[Dict[str, Any]]
     ocr_engine: Optional[str] = LLM_MODEL
 
+class ApproveBatchRequest(BaseModel):
+    slides: List[ApproveSlideRequest]
+
 @app.post("/api/ocr/approve")
 def api_ocr_approve(req: ApproveSlideRequest, request: Request):
     """
@@ -1394,6 +1397,73 @@ def api_ocr_approve(req: ApproveSlideRequest, request: Request):
         approved_proposals=req.approved_proposals,
         ocr_engine=req.ocr_engine or LLM_MODEL
     )
+
+@app.post("/api/ocr/approve-batch")
+def api_ocr_approve_batch(req: ApproveBatchRequest, request: Request):
+    """
+    Guarded route: Commits multiple reviewed slides into DuckDB in batch for a study.
+    """
+    user = get_current_user_from_request(request)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required. Please sign in with an authorized Curator or Administrator Google account to approve slides."
+        )
+    if user.get("role") not in ["curator", "admin"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: Only Curators or Administrators can commit changes to the archive taxonomy."
+        )
+
+    if not req.slides:
+        raise HTTPException(status_code=400, detail="No slides provided in batch request.")
+
+    committed_slides = []
+    combined_tables_impacted = {}
+    
+    for s in req.slides:
+        res = commit_curator_approval(
+            study_id=s.study_id,
+            slide_number=s.slide_number,
+            slide_title=s.slide_title,
+            image_rel_url=s.image_url,
+            raw_ocr=s.raw_ocr,
+            cleaned_ocr=s.cleaned_ocr,
+            approved_proposals=s.approved_proposals,
+            ocr_engine=s.ocr_engine or LLM_MODEL
+        )
+        committed_slides.append({
+            "slide_id": res.get("slide_id"),
+            "effective_slide_number": res.get("effective_slide_number"),
+            "image_url": res.get("image_url")
+        })
+        for item in res.get("tables_impacted", []):
+            tbl = item["table_name"]
+            if tbl not in combined_tables_impacted:
+                combined_tables_impacted[tbl] = {
+                    "table_name": tbl,
+                    "operation": item["operation"],
+                    "rows_impacted": 0
+                }
+            combined_tables_impacted[tbl]["rows_impacted"] += item["rows_impacted"]
+
+    tables_impacted_list = [
+        {
+            "table_name": v["table_name"],
+            "operation": v["operation"],
+            "rows_impacted": v["rows_impacted"],
+            "description": f"{v['rows_impacted']} records committed across {len(req.slides)} plate(s)"
+        }
+        for v in combined_tables_impacted.values()
+    ]
+
+    return {
+        "status": "success",
+        "message": f"Successfully ingested batch of {len(committed_slides)} plates into study '{req.slides[0].study_id}'!",
+        "total_slides_ingested": len(committed_slides),
+        "slides": committed_slides,
+        "tables_impacted": tables_impacted_list
+    }
 
 # ----------------------------------------------------------------------------
 # 3. ARCHIVE DATA STUDIO & ROW EXPLORER (ROUTE GUARDED - ADMIN ONLY)
