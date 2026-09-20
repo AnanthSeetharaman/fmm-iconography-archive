@@ -427,9 +427,10 @@ def get_ocr_context() -> Dict[str, Any]:
     finally:
         conn.close()
 
-def create_new_study(title: str, subtitle: Optional[str] = None, series_id: int = 1, access_level: str = "public") -> Dict[str, Any]:
+def create_new_study(title: str, subtitle: Optional[str] = None, series_id: int = 1, access_level: str = "member_only") -> Dict[str, Any]:
     """
-    Creates a new research monograph study in the studies table with proper foreign keys.
+    Creates a new research iconograph study in the studies table with proper foreign keys.
+    Default access level is 'member_only' (premium).
     """
     conn = get_db()
     try:
@@ -453,8 +454,8 @@ def create_new_study(title: str, subtitle: Optional[str] = None, series_id: int 
 
         count_studies = conn.execute("SELECT COUNT(*) FROM studies").fetchone()[0]
         study_num = f"Study {count_studies + 1:03d}"
-        sub = subtitle or f"Iconographical research monograph on {title}"
-        summary = f"# {title}\n\n{sub}\n\nCurated research monograph in the Five Metal Masonry Sacred Iconography Archive."
+        sub = subtitle or f"Iconographical research iconograph on {title}"
+        summary = f"# {title}\n\n{sub}\n\nCurated research iconograph in the Five Metal Masonry Sacred Iconography Archive."
         study_vec = text_to_dense_vector(f"{title} {sub} {ser_row[1]}")
 
         conn.execute("""
@@ -465,7 +466,7 @@ def create_new_study(title: str, subtitle: Optional[str] = None, series_id: int 
         """, (study_id, series_id, clean_slug, title, sub, study_num, summary, access_level, study_vec))
 
         # Insert content access rule
-        car_tier = "scholar_pro" if access_level == "scholar_pro" else "free"
+        car_tier = "free" if access_level == "public" else "scholar_pro"
         conn.execute("""
             INSERT INTO content_access_rules (id, study_id, required_tier, allow_preview, allow_high_res_download, is_blocked)
             VALUES (?, ?, ?, TRUE, TRUE, FALSE)
@@ -497,7 +498,7 @@ def create_new_series(name: str, scope: Optional[str] = None) -> Dict[str, Any]:
 
         max_row = conn.execute("SELECT COALESCE(MAX(id), 0) FROM series").fetchone()
         new_id = max_row[0] + 1
-        scope_val = scope or f"Archival research monograph series covering {name}"
+        scope_val = scope or f"Archival research iconograph series covering {name}"
         ser_vec = text_to_dense_vector(f"{name} {scope_val}")
 
         conn.execute("""
@@ -534,7 +535,7 @@ def commit_curator_approval(
     conn = get_db()
     slide_id = f"sl_{uuid.uuid4().hex[:12]}"
 
-    # Check if study exists; auto-create if missing to avoid orphan FK
+    # Check if study exists; auto-create if missing to avoid orphan FK (default access_level: member_only)
     study_row = conn.execute("SELECT id, total_slides FROM studies WHERE id = ?", (study_id,)).fetchone()
     if not study_row:
         clean_title = slide_title if slide_title else "Curated Iconography Study"
@@ -542,12 +543,12 @@ def commit_curator_approval(
         clean_slug = re.sub(r'[^a-z0-9]+', '-', study_id.lower()).strip('-')
         conn.execute("""
             INSERT INTO studies (id, series_id, slug, title, subtitle, study_number, summary_markdown, access_level, total_slides, cover_image_url, embedding)
-            VALUES (?, 1, ?, ?, ?, 'Study 001', 'Curated Research Monograph', 'public', 0, ?, ?)
-        """, (study_id, clean_slug, clean_title, f"Monograph on {clean_title}", image_rel_url, study_vec))
+            VALUES (?, 1, ?, ?, ?, 'Study 001', 'Curated Research Iconograph', 'member_only', 0, ?, ?)
+        """, (study_id, clean_slug, clean_title, f"Iconograph on {clean_title}", image_rel_url, study_vec))
         conn.execute("""
             INSERT INTO content_access_rules (id, study_id, required_tier, allow_preview, allow_high_res_download, is_blocked)
-            VALUES (?, ?, 'free', TRUE, TRUE, FALSE)
-        """, (f"car_pub_{study_id}", study_id))
+            VALUES (?, ?, 'scholar_pro', TRUE, TRUE, FALSE)
+        """, (f"car_prem_{study_id}", study_id))
 
     # Calculate actual sequential slide number
     cur_count = conn.execute("SELECT COUNT(*) FROM study_slides WHERE study_id = ?", (study_id,)).fetchone()[0]

@@ -214,15 +214,15 @@ document.addEventListener("DOMContentLoaded", () => {
   initDataStudioModes();
   loadArchivalTelemetry();
   loadTaxonomyData();
+  initHeroCarousel();
 
-  
   // Trigger default initial search to display featured studies
   runScholarSearch();
 
   // Restore hash tab if specified
   if (window.location.hash) {
     const targetTab = window.location.hash.replace("#", "").replace("tab-", "");
-    if (["search", "ocr_studio", "admin_studio", "about", "member", "dictionary"].includes(targetTab)) {
+    if (["search", "collections", "ocr_studio", "admin_studio", "about", "member", "dictionary"].includes(targetTab)) {
       setTimeout(() => switchTab(targetTab), 50);
     }
   }
@@ -271,6 +271,9 @@ function initNavigation() {
 }
 
 function switchTab(tabId) {
+  if (tabId === "collections") {
+    loadCollectionsView();
+  }
   if (tabId === "admin_studio") {
     initDataStudioModes();
     loadArchivalTelemetry();
@@ -924,8 +927,8 @@ function renderSearchResults(studies) {
   const countLabel = document.getElementById("resultsCountLabel");
   if (countLabel) {
     countLabel.textContent = studies && studies.length > 0
-      ? `Showing ${studies.length} monographs`
-      : `0 monographs in archive`;
+      ? `Showing ${studies.length} iconographs & sacred studies`
+      : `0 iconographs in archive`;
   }
 
   if (!studies || studies.length === 0) {
@@ -942,14 +945,14 @@ function renderSearchResults(studies) {
         <p style="font-size:14px; color:var(--muted); max-width:500px; margin:0 auto 20px auto; line-height:1.5;">
           ${isSearch 
             ? 'Scholarly re-ranking requires thematic affinity with South Indian Panchaloha iconography, Agamic canons, postures (Asana), gestures (Mudra), or divinities. Conversational greetings or non-iconographic words are excluded.'
-            : 'No monographs or studies are currently loaded. Use the Visual OCR Studio to ingest new photographic plates and publish monographs.'}
+            : 'No iconographs or sacred studies are currently loaded. Use the Visual OCR Studio to ingest new photographic plates and publish iconographs.'}
         </p>
         ${!isSearch ? `
           <button class="btn-primary" onclick="switchTab('ocr_studio')" style="padding:10px 22px; font-size:13px; margin:0 auto;">
             <span><img src="assets/icons/silpa-camera.svg" class="fmm-icon" alt="" /></span> Open Visual OCR Studio
           </button>
         ` : `
-          <button class="btn-secondary" onclick="document.getElementById('scholarSearchInput').value=''; state.searchQuery=''; loadStudies();" style="padding:8px 18px; font-size:12.5px; margin:0 auto;">
+          <button class="btn-secondary" onclick="document.getElementById('scholarSearchInput').value=''; state.searchQuery=''; runScholarSearch();" style="padding:8px 18px; font-size:12.5px; margin:0 auto;">
             Clear Search Filter
           </button>
         `}
@@ -1035,11 +1038,11 @@ function renderSearchResults(studies) {
           <div class="soft-gate-overlay">
             <div class="soft-gate-content">
               <img src="assets/icons/kavacha-shield.svg" class="fmm-icon" style="width:36px; height:36px; margin-bottom:10px;" alt="" />
-              <h4>Scholar Pro Monograph</h4>
+              <h4>Scholar Pro Iconograph</h4>
               <p>Full slides, 300 DPI plates, and verified OCR taxonomy for <strong>${study.title}</strong> require Scholar Pro access.</p>
               <div class="soft-gate-actions">
                 <button class="btn-primary btn-gold" onclick="openSubscriptionGate(${JSON.stringify({study_id: study.study_id, title: study.title, total_slides: study.total_slides}).replace(/"/g, '&quot;')})" style="padding:10px 20px; font-size:13.5px;">
-                  <span><img src="assets/icons/varaha-coin.svg" class="fmm-icon" alt="" /></span> Unlock Monograph
+                  <span><img src="assets/icons/varaha-coin.svg" class="fmm-icon" alt="" /></span> Unlock Iconograph
                 </button>
                 <button class="btn-secondary" onclick="openAuthModal()" style="padding:10px 16px; font-size:13px;">
                   <span><img src="assets/icons/kunchika-key.svg" class="fmm-icon" alt="" /></span> Sign In
@@ -1126,18 +1129,12 @@ function renderSearchResults(studies) {
               </div>
             `}
 
-            <div class="card-actions-row">
-              ${hasSlides ? `
-                <button class="btn-primary preview-plate-btn inspect-plate-btn">
-                  <span><img src="assets/icons/drishti-lens.svg" class="fmm-icon" alt="" /></span> Inspect 300 DPI Archival Plate
-                </button>
-              ` : `
-                <button class="btn-primary" onclick="switchTab('ocr_studio')">
-                  <span><img src="assets/icons/silpa-camera.svg" class="fmm-icon" alt="" /></span> + Ingest Archival Plate
-                </button>
-              `}
-              <button class="btn-secondary view-study-details-btn">
-                <span><img src="assets/icons/grantha-lexicon.svg" class="fmm-icon" alt="" /></span> Study Monograph Notes
+            <div class="card-actions-row" style="display:flex; gap:10px; align-items:center;">
+              <button class="btn-primary view-study-details-btn" style="flex:1; justify-content:center; padding:10px 16px; font-size:13px;">
+                <span><img src="assets/icons/grantha-lexicon.svg" class="fmm-icon" alt="" /></span> Study Notes &amp; OCR Corpus
+              </button>
+              <button class="btn-primary btn-gold download-study-pdf-btn" style="padding:10px 20px; font-size:13px; font-weight:700;" title="Download Research PDF for this study">
+                <span><img src="assets/icons/tamra-download.svg" class="fmm-icon" alt="" /></span> PDF
               </button>
             </div>
           </div>
@@ -1204,15 +1201,21 @@ function renderSearchResults(studies) {
 
     if (downloadBtn) {
       downloadBtn.addEventListener("click", () => {
-        const sl = slides[curSlideIdx];
-        openLightbox(sl ? sl.image_url : study.cover_image_url, `${study.title} - Plate ${sl ? sl.slide_number : 1}`);
+        downloadStudyPdf(study.study_id);
       });
     }
 
     const detailsBtn = card.querySelector(".view-study-details-btn");
     if (detailsBtn) {
       detailsBtn.addEventListener("click", () => {
-        alert(`Study Abstract:\n\n${study.summary_markdown || study.subtitle || study.title}`);
+        openStudyNotesModal(study.study_id);
+      });
+    }
+
+    const pdfBtn = card.querySelector(".download-study-pdf-btn");
+    if (pdfBtn) {
+      pdfBtn.addEventListener("click", () => {
+        downloadStudyPdf(study.study_id);
       });
     }
   });
@@ -1319,14 +1322,14 @@ function initOCRStudio() {
       e.preventDefault();
       uploadDropzone.style.borderColor = "var(--line)";
       uploadDropzone.style.background = "transparent";
-      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        handleFileUpload(e.dataTransfer.files[0]);
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleFileUpload(e.dataTransfer.files);
       }
     });
 
     fileInput.addEventListener("change", (e) => {
-      if (e.target.files && e.target.files[0]) {
-        handleFileUpload(e.target.files[0]);
+      if (e.target.files && e.target.files.length > 0) {
+        handleFileUpload(e.target.files);
       }
     });
   }
@@ -1533,10 +1536,10 @@ window.handleNewStudyFormSubmit = async function(e) {
     document.getElementById("newStudyForm").reset();
 
     if (typeof showToast === "function") {
-      showToast(`Monograph '${newStudy.title}' created and set as active target!`);
+      showToast(`Iconograph '${newStudy.title}' created and set as active target!`);
     }
   } catch (err) {
-    alert("Failed to create monograph: " + err.message);
+    alert("Failed to create iconograph: " + err.message);
   }
 };
 
@@ -1565,7 +1568,12 @@ function updateOcrPipelineStep(stepNumber) {
   }
 }
 
-async function handleFileUpload(file) {
+async function handleFileUpload(fileOrFiles) {
+  const files = (fileOrFiles instanceof FileList || Array.isArray(fileOrFiles)) 
+    ? Array.from(fileOrFiles) 
+    : [fileOrFiles];
+  if (!files || files.length === 0) return;
+
   const stage = document.getElementById("ocrPreviewStage");
   const uploadPrompt = document.getElementById("ocrUploadPrompt");
   const previewImg = document.getElementById("ocrPreviewImg");
@@ -1582,12 +1590,13 @@ async function handleFileUpload(file) {
   uploadPrompt.innerHTML = `
     <div style="display:flex; align-items:center; justify-content:center; gap:10px; color:var(--accent); font-weight:700; padding:10px;">
       <img src="assets/icons/dharma-chakra.svg" class="fmm-icon rotating-chakra" style="width:20px; height:20px;" alt="" />
-      <span>Executing ${engineLabel} &amp; Sanskrit IAST Processing...</span>
+      <span>Executing ${engineLabel} on ${files.length} plate${files.length > 1 ? 's' : ''} &amp; Sanskrit IAST Processing...</span>
     </div>
   `;
 
   const formData = new FormData();
-  formData.append("file", file);
+  files.forEach(f => formData.append("files", f));
+  formData.append("file", files[0]);
   formData.append("study_slug", state.selectedStudySlug || "ganesa-variations-in-iconography");
   formData.append("engine", engine);
 
@@ -1606,7 +1615,7 @@ async function handleFileUpload(file) {
     setTimeout(() => updateOcrPipelineStep(4), 400);
 
     // Display side-by-side
-    previewImg.src = data.image_url;
+    previewImg.src = formatImageUrl(data.image_url);
     rawTextEl.innerText = data.raw_ocr;
     cleanedTextEl.innerText = data.cleaned_ocr;
     if (storageUriEl) storageUriEl.innerText = data.image_url;
@@ -1624,9 +1633,12 @@ async function handleFileUpload(file) {
     uploadPrompt.innerHTML = `
       <div style="display:flex; align-items:center; justify-content:center; gap:8px; color:var(--success); font-weight:700;">
         <img src="assets/icons/pramana-check.svg" class="fmm-icon" style="width:16px; height:16px;" alt="" />
-        <span>Extraction complete (${data.word_count} words recognized with IAST diacritic restoration)</span>
+        <span>Extraction complete (${data.total_uploaded || 1} plate(s), ${data.word_count} words recognized with IAST diacritic restoration)</span>
       </div>
     `;
+    if (files.length > 1 && typeof showToast === "function") {
+      showToast(`Ingested ${files.length} plates for series: ${data.word_count} words recognized`);
+    }
   } catch (err) {
     console.error("OCR Upload failed:", err);
     stage.style.display = "none";
@@ -1714,7 +1726,7 @@ function loadSampleSlide(slideType) {
     ];
   } else if (slideType === 1) {
     sampleUrl = "/storage/images/ganesa-variations-in-iconography/slide_1.jpeg";
-    badgeText = "Monograph 001 · Introductory Plate";
+    badgeText = "Iconograph 001 · Introductory Plate";
     rawSample = "ICONOGRAPHY VARIATIONS IN ICONOGRAPHY The iconography of Ganesa presents considerable variation in posture, composition and anatomical form. This study examines these visible variations— including the number of arms and faces, disposition of the trunk and distinctive regional configurations—rather than presenting another prescribed set of forms. Some of these variations occur within the well- known 32 forms of GaQeSa (covered earlier) and are revisited here specifically to -illustrate their distinctive iconographic features.";
     cleanSample = "The iconography of Gaṇeśa presents considerable variation in posture, composition and anatomical form. This study examines these visible variations—including the number of arms and faces, disposition of the trunk and distinctive regional configurations—rather than presenting another prescribed set of forms. Some of these variations occur within the well-known 32 forms of Gaṇeśa (covered earlier).";
     proposals = [
@@ -1743,7 +1755,7 @@ function loadSampleSlide(slideType) {
     ];
   } else {
     sampleUrl = "/storage/images/ganesa-variations-in-iconography/slide_2.jpeg";
-    badgeText = "Monograph 001 · Taxonomy Plate";
+    badgeText = "Iconograph 001 · Taxonomy Plate";
     rawSample = "1. POSTURAL & COMPOSITIONAL VARIATIONS • ÄsTna — seated • Sthänaka — standing • Nrtta — dancing • Mü$kavähana — mounted/seated upon the mü#ika • With Devi/Devis 2. ANATOMICAL VARIATIONS Bähu-bheda • Dvibhuja • Caturbhuja • Sadbhuja • TriSuQ4a GaQapati, Pune— three-trunked form";
     cleanSample = "1. Postural & Compositional Variations: Āsīna (seated), Sthānaka (standing), Nṛtta (dancing), Mūṣikavāhana (mounted upon mūṣika), With Devi/Devis. 2. Anatomical Variations: Bāhu-bheda (Dvibhuja, Caturbhuja, Ṣaḍbhuja), Triśuṇḍa Gaṇapati, Pune (three-trunked form).";
     proposals = [
@@ -2177,10 +2189,10 @@ const TABLE_METADATA = {
   // ── SILVER LAYER: T_ODS (Curated Canonical Knowledge) ──────────────────
   studies: {
     medallion_name: "T_ODS_STUDIES",
-    title: "Research Monographs",
+    title: "Research Iconographs",
     layer: "ods",
     icon: "grantha-lexicon",
-    desc: "Scholarly research monographs, access tiers & publication metadata"
+    desc: "Scholarly research iconographs, access tiers & publication metadata"
   },
   series: {
     medallion_name: "T_ODS_SERIES",
@@ -2307,15 +2319,17 @@ function initDataStudioModes() {
   const btnLoop = document.getElementById("btnModeLoop");
   const btnTable = document.getElementById("btnModeTable");
   const btnCrud = document.getElementById("btnModeCrud");
+  const btnStudents = document.getElementById("btnModeStudents");
 
   const viewArch = document.getElementById("dataStudioArchView");
   const viewLoop = document.getElementById("dataStudioLoopView");
   const viewTable = document.getElementById("dataStudioTableView");
   const viewCrud = document.getElementById("dataStudioCrudView");
+  const viewStudents = document.getElementById("dataStudioStudentsView");
 
   function setMode(mode) {
-    [btnArch, btnLoop, btnTable, btnCrud].forEach(b => b && b.classList.remove("active"));
-    [viewArch, viewLoop, viewTable, viewCrud].forEach(v => v && (v.style.display = "none"));
+    [btnArch, btnLoop, btnTable, btnCrud, btnStudents].forEach(b => b && b.classList.remove("active"));
+    [viewArch, viewLoop, viewTable, viewCrud, viewStudents].forEach(v => v && (v.style.display = "none"));
 
     if (mode === "arch") {
       if (btnArch) btnArch.classList.add("active");
@@ -2331,6 +2345,10 @@ function initDataStudioModes() {
       if (btnCrud) btnCrud.classList.add("active");
       if (viewCrud) viewCrud.style.display = "block";
       loadCrudData();
+    } else if (mode === "students") {
+      if (btnStudents) btnStudents.classList.add("active");
+      if (viewStudents) viewStudents.style.display = "block";
+      loadStudentApplications();
     }
   }
 
@@ -2338,6 +2356,7 @@ function initDataStudioModes() {
   if (btnLoop) btnLoop.addEventListener("click", () => setMode("loop"));
   if (btnTable) btnTable.addEventListener("click", () => setMode("table"));
   if (btnCrud) btnCrud.addEventListener("click", () => setMode("crud"));
+  if (btnStudents) btnStudents.addEventListener("click", () => setMode("students"));
 
   dataStudioModesInitialized = true;
 }
@@ -2379,7 +2398,7 @@ window.runKnowledgeLoopSelfTest = async function() {
     let htmlResult = `
       <div style="font-weight:700; color:var(--ink); margin-bottom:8px;">🔍 Self-Learning Query Evaluation: "${query}"</div>
       <div>1. <strong style="color:var(--accent);">Exact Lexicon Match:</strong> ${matched.length > 0 ? `<span style="color:#059669; font-weight:700;">Found ${matched.length} term(s)</span> (${matched.map(m => m.canonical_name).join(', ')})` : `<span style="color:#d97706;">No direct lexicon match. Fallback to phonetic & OCR embeddings.</span>`}</div>
-      <div>2. <strong style="color:var(--bronze);">Monographs Filter:</strong> Evaluated against DuckDB FTS &amp; OCR layers</div>
+      <div>2. <strong style="color:var(--bronze);">Iconographs Filter:</strong> Evaluated against DuckDB FTS &amp; OCR layers</div>
       <div>3. <strong style="color:#059669);">Relational Integrity:</strong> Connected to live Medallion ODS bridges.</div>
       <div style="margin-top:6px; color:var(--success); font-weight:600;">✓ Result: Processed through 4 architectural tiers. Pipeline verified.</div>
     `;
@@ -2921,7 +2940,7 @@ window.executeGPayPayment = async function() {
 
 
 // ============================================================================
-// STUDY MONOGRAPH MODAL CONTROLLER & FALLBACK CATALOG
+// STUDY ICONOGRAPH MODAL CONTROLLER & FALLBACK CATALOG
 // ============================================================================
 
 const FMM_STUDY_CATALOG = {
@@ -3094,11 +3113,11 @@ window.openSubscriptionGate = function(study) {
   const descEl = document.getElementById("gateModalDesc");
   const payBtn = document.getElementById("gateModalPayBtn");
 
-  if (titleEl) titleEl.innerText = study.title || "Unlock This Monograph";
+  if (titleEl) titleEl.innerText = study.title || "Unlock This Iconograph";
   if (descEl) {
     descEl.innerHTML = `
       <strong>${study.title}</strong> is part of the Scholar Pro collection.
-      This monograph contains <strong>${study.total_slides || 'multiple'} archival plates</strong>
+      This iconograph contains <strong>${study.total_slides || 'multiple'} archival plates</strong>
       with verified OCR taxonomy and canonical iconometric measurements.
       <br><br>Sign in or upgrade to access the full study.
     `;
@@ -3112,6 +3131,552 @@ window.openSubscriptionGate = function(study) {
   }
 
   modal.classList.add("active");
+};
+
+// ============================================================================
+// SACRED ICONOGRAPH HERO SLIDE CAROUSEL (Replaced 3D Hero)
+// ============================================================================
+let currentHeroSlideIndex = 0;
+let heroCarouselTimer = null;
+
+const HERO_SLIDES = [
+  {
+    badge: "Public Study · Plate 1 of 4",
+    title: "Ganesha with Arch & Asina Mudra",
+    sub: "Navatala Proportion · Lost-Wax Panchaloha Bronze",
+    img: "/storage/images/ganesa-variations-in-iconography/slide_1.png",
+    study_id: "s_ganesa_001"
+  },
+  {
+    badge: "Public Study · Plate 2 of 4",
+    title: "Sthanaka Ganesha on Padmasana",
+    sub: "Standing Equilibrium & Brahmasutra Plumb-Line Alignment",
+    img: "/storage/images/ganesa-variations-in-iconography/slide_2.png",
+    study_id: "s_ganesa_001"
+  },
+  {
+    badge: "Public Study · Plate 3 of 4",
+    title: "Valampuri & Idampuri Trunk Variations",
+    sub: "Agamic Canonical Differentiations in Panchaloha Casting",
+    img: "/storage/images/ganesa-variations-in-iconography/slide_3.png",
+    study_id: "s_ganesa_001"
+  },
+  {
+    badge: "Masterpiece Study · Featured Plate",
+    title: "Nataraja: Cosmic Dance (Ananda Tandava)",
+    sub: "Dasatala Proportion · Prabhavali Flaming Aureole",
+    img: "/storage/images/nataraja-cosmic-dance-iconometry/slide_1.png",
+    study_id: "s_nataraja_002"
+  },
+  {
+    badge: "Masterpiece Study · Featured Plate",
+    title: "Krishna Venugopala: Tribhanga Posture",
+    sub: "Triple-Bending Harmonic Symmetry and Bamboo Flute",
+    img: "/storage/images/krishna-venugopala-tribhanga-posture/slide_1.png",
+    study_id: "s_venugopala_005"
+  }
+];
+
+function initHeroCarousel() {
+  const container = document.getElementById("heroCarouselContainer");
+  if (!container) return;
+
+  renderHeroSlide(0);
+
+  // Auto rotate every 6 seconds
+  if (heroCarouselTimer) clearInterval(heroCarouselTimer);
+  heroCarouselTimer = setInterval(() => {
+    nextHeroSlide();
+  }, 6000);
+
+  // Pause on hover
+  container.addEventListener("mouseenter", () => {
+    if (heroCarouselTimer) clearInterval(heroCarouselTimer);
+  });
+  container.addEventListener("mouseleave", () => {
+    if (heroCarouselTimer) clearInterval(heroCarouselTimer);
+    heroCarouselTimer = setInterval(nextHeroSlide, 6000);
+  });
+}
+
+function renderHeroSlide(idx) {
+  if (idx < 0) idx = HERO_SLIDES.length - 1;
+  if (idx >= HERO_SLIDES.length) idx = 0;
+  currentHeroSlideIndex = idx;
+
+  const slide = HERO_SLIDES[currentHeroSlideIndex];
+  const badgeEl = document.getElementById("heroSlideBadge");
+  const imgEl = document.getElementById("heroSlideImg");
+  const titleEl = document.getElementById("heroSlideTitle");
+  const subEl = document.getElementById("heroSlideSub");
+
+  if (badgeEl) badgeEl.textContent = slide.badge;
+  if (imgEl) {
+    imgEl.src = formatImageUrl(slide.img);
+    imgEl.alt = slide.title;
+  }
+  if (titleEl) titleEl.textContent = slide.title;
+  if (subEl) subEl.textContent = slide.sub;
+}
+
+window.prevHeroSlide = function() {
+  renderHeroSlide(currentHeroSlideIndex - 1);
+};
+
+window.nextHeroSlide = function() {
+  renderHeroSlide(currentHeroSlideIndex + 1);
+};
+
+window.handleHeroSlideClick = function() {
+  const slide = HERO_SLIDES[currentHeroSlideIndex];
+  if (slide) {
+    if (slide.study_id) {
+      openStudyNotesModal(slide.study_id);
+    } else {
+      openLightbox(slide.img, slide.title);
+    }
+  }
+};
+
+// ============================================================================
+// SACRED COLLECTIONS VIEW (fivemetalmasonry.com/collections style)
+// ============================================================================
+let loadedCollectionsData = null;
+let activeCollectionFilter = "all";
+
+async function loadCollectionsView() {
+  const grid = document.getElementById("collectionsCardsGrid");
+  if (!grid) return;
+
+  grid.innerHTML = `
+    <div class="loading-state-box" style="grid-column: 1 / -1; text-align:center; padding:50px;">
+      <img src="assets/icons/dharma-chakra.svg" class="fmm-icon rotating-chakra" style="width:32px; height:32px;" alt="" />
+      <div style="margin-top:12px; color:var(--muted); font-size:14px;">Loading Panchaloha Sacred Collections...</div>
+    </div>
+  `;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/collections`);
+    const data = await res.json();
+    loadedCollectionsData = data.collections || [];
+    renderCollectionsGrid(activeCollectionFilter);
+  } catch (err) {
+    console.error("Failed to load collections:", err);
+    grid.innerHTML = `
+      <div style="grid-column:1 / -1; text-align:center; padding:40px; color:var(--danger);">
+        Failed to load collections: ${err.message}
+      </div>
+    `;
+  }
+}
+
+function renderCollectionsGrid(filterTheme) {
+  const grid = document.getElementById("collectionsCardsGrid");
+  if (!grid || !loadedCollectionsData) return;
+
+  grid.innerHTML = "";
+
+  let filtered = loadedCollectionsData;
+  if (filterTheme && filterTheme !== "all") {
+    filtered = loadedCollectionsData.filter(c => c.theme === filterTheme || c.title.includes(filterTheme));
+  }
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `
+      <div style="grid-column:1 / -1; text-align:center; padding:50px; background:var(--paper-raised); border:1px dashed var(--line); border-radius:var(--radius-lg);">
+        <h4 style="font-family:var(--font-serif); font-size:18px; color:var(--ink);">No studies found in this collection category.</h4>
+        <button class="sample-btn" onclick="filterCollections('all')" style="margin-top:12px;">View All Collections</button>
+      </div>
+    `;
+    return;
+  }
+
+  filtered.forEach(item => {
+    const card = document.createElement("div");
+    card.className = "collection-card";
+    
+    const isPublic = item.access_level === "public" || item.is_public;
+    const canAccess = item.user_can_access;
+
+    card.innerHTML = `
+      <div class="col-card-img-wrap">
+        <img src="${formatImageUrl(item.cover_image_url)}" alt="${sanitizeHTML(item.title)}" onerror="this.src='/assets/shilpa_shastra_iconography.jpg';" />
+        <div class="col-card-badge-row">
+          <span class="col-theme-badge">${sanitizeHTML(item.theme || 'Iconography')}</span>
+          ${isPublic 
+            ? '<span class="col-access-badge public">✓ Public Study</span>'
+            : '<span class="col-access-badge premium">🔒 Scholar Tier</span>'
+          }
+        </div>
+      </div>
+      <div class="col-card-body">
+        <div class="col-card-meta">${item.plate_count || 1} Archival Plate${(item.plate_count || 1) > 1 ? 's' : ''} · ${sanitizeHTML(item.study_number || 'Study')}</div>
+        <h3 class="col-card-title">${sanitizeHTML(item.title)}</h3>
+        <p class="col-card-sub">${sanitizeHTML(item.subtitle || '')}</p>
+        <p class="col-card-desc">${sanitizeHTML(item.summary || '')}</p>
+        
+        <div class="col-card-actions">
+          <button class="btn-primary col-card-btn explore-col-btn" style="flex:1;">
+            <span><img src="assets/icons/drishti-lens.svg" class="fmm-icon" alt="" /></span>
+            ${canAccess ? 'Explore Study' : 'Preview &amp; Unlock'}
+          </button>
+          <button class="btn-secondary col-pdf-btn" title="Download Research PDF" style="padding:8px 12px;">
+            <span><img src="assets/icons/tamra-download.svg" class="fmm-icon" alt="" /></span> PDF
+          </button>
+        </div>
+      </div>
+    `;
+
+    const exploreBtn = card.querySelector(".explore-col-btn");
+    exploreBtn.addEventListener("click", () => {
+      if (canAccess) {
+        openStudyNotesModal(item.study_id);
+      } else {
+        openSubscriptionGate({
+          study_id: item.study_id,
+          title: item.title,
+          total_slides: item.plate_count
+        });
+      }
+    });
+
+    const pdfBtn = card.querySelector(".col-pdf-btn");
+    pdfBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      downloadStudyPdf(item.study_id);
+    });
+
+    grid.appendChild(card);
+  });
+}
+
+window.filterCollections = function(theme) {
+  activeCollectionFilter = theme;
+  document.querySelectorAll(".col-filter-btn").forEach(b => {
+    b.classList.toggle("active", b.dataset.filter === theme);
+  });
+  renderCollectionsGrid(theme);
+};
+
+// ============================================================================
+// STUDY NOTES MODAL & OCR CORPUS CONTROLLER
+// ============================================================================
+let activeStudyNotesId = null;
+
+window.openStudyNotesModal = async function(studyId) {
+  activeStudyNotesId = studyId;
+  const modal = document.getElementById("studyNotesModal");
+  if (!modal) return;
+
+  const titleEl = document.getElementById("studyNotesModalTitle");
+  const abstractEl = document.getElementById("studyNotesAbstract");
+  const ocrCorpusEl = document.getElementById("studyNotesOcrCorpus");
+  const taxonomyGrid = document.getElementById("studyNotesTaxonomyGrid");
+
+  if (titleEl) titleEl.textContent = "Loading Study Notes...";
+  if (abstractEl) abstractEl.textContent = "Fetching curatorial abstract...";
+  if (ocrCorpusEl) ocrCorpusEl.textContent = "Extracting Sanskrit IAST epigraphy & OCR corpus...";
+  if (taxonomyGrid) taxonomyGrid.innerHTML = "";
+
+  modal.classList.add("active");
+
+  try {
+    let study = (state.searchResults && state.searchResults.find(s => (s.study_id === studyId || s.id === studyId))) || (window.FMM_STUDY_CATALOG && window.FMM_STUDY_CATALOG[studyId]);
+    
+    // Always fetch freshest curated study detail from backend
+    try {
+      const res = await fetch(`${API_BASE}/api/studies/${studyId}`);
+      if (res.ok) {
+        const fresh = await res.json();
+        if (fresh && (fresh.id || fresh.study_id)) {
+          study = fresh;
+          if (!study.study_id) study.study_id = fresh.id;
+        }
+      }
+    } catch (e) {
+      console.warn("Could not fetch fresh study detail:", e);
+    }
+
+    if (!study) {
+      if (titleEl) titleEl.textContent = "Study Not Found";
+      if (abstractEl) abstractEl.textContent = "The requested study could not be loaded.";
+      return;
+    }
+
+    if (titleEl) titleEl.textContent = `${study.title} · Notes & OCR Corpus`;
+    if (abstractEl) abstractEl.textContent = study.summary_markdown || study.summary || study.subtitle || "Canonical study on South Indian Panchaloha sacred bronze iconography.";
+
+    // Assemble full curated approved OCR Corpus from all slides
+    let corpusText = "";
+    if (study.slides && study.slides.length > 0) {
+      corpusText = study.slides.map(sl => {
+        const slideHead = `=== PLATE ${sl.slide_number}: ${(sl.slide_title || 'Sacred Plate').toUpperCase()} ===`;
+        const slideOcr = sl.cleaned_text || sl.raw_ocr || sl.caption || "No inscribed text detected.";
+        return `${slideHead}\n${slideOcr}\n`;
+      }).join("\n");
+    } else {
+      corpusText = study.summary_markdown || study.summary || "Sanskrit Epigraphy & IAST Corpus: Ingestion in progress.";
+    }
+
+    if (ocrCorpusEl) ocrCorpusEl.textContent = corpusText;
+
+    // Controlled Taxonomy tags
+    if (taxonomyGrid) {
+      taxonomyGrid.innerHTML = "";
+      let tags = [];
+      if (study.taxonomy && study.taxonomy.length > 0) {
+        tags = study.taxonomy.map(t => `${t.category || 'Theme'}: ${t.term}${t.iast ? ` (${t.iast})` : ''}`);
+      } else if (study.match_cues && study.match_cues.length > 0) {
+        tags = study.match_cues;
+      } else {
+        tags = ["Panchaloha", "Navatala Proportion", "Shilpa Shastra", "Asina Posture", "Agamic Canon"];
+      }
+      tags.forEach(tag => {
+        const span = document.createElement("span");
+        span.className = "cue-pill";
+        span.innerHTML = `<span class="fmm-cue-marker"></span> ${sanitizeHTML(tag)}`;
+        taxonomyGrid.appendChild(span);
+      });
+    }
+
+  } catch (err) {
+    console.error("Error opening study notes:", err);
+  }
+};
+
+window.copyOcrCorpusText = function() {
+  const ocrEl = document.getElementById("studyNotesOcrCorpus");
+  if (!ocrEl) return;
+  const text = ocrEl.textContent || "";
+  navigator.clipboard.writeText(text).then(() => {
+    if (typeof showToast === "function") {
+      showToast("OCR Epigraphy Corpus copied to clipboard!");
+    } else {
+      alert("OCR Corpus copied to clipboard!");
+    }
+  }).catch(err => {
+    console.error("Copy failed:", err);
+  });
+};
+
+window.handleStudyNotesPdfDownload = function() {
+  if (activeStudyNotesId) {
+    downloadStudyPdf(activeStudyNotesId);
+  }
+};
+
+// ============================================================================
+// PDF GENERATION & DOWNLOAD CONTROLLER (Default Action & Trial Limit Enforcement)
+// ============================================================================
+window.downloadStudyPdf = async function(studyId) {
+  if (!studyId) {
+    alert("Please select a study to download.");
+    return;
+  }
+
+  if (typeof showToast === "function") {
+    showToast("Generating research-grade PDF with 300 DPI plates & epigraphy...");
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/studies/${studyId}/pdf`);
+    
+    if (res.status === 403) {
+      const errData = await res.json().catch(() => ({}));
+      const msg = errData.detail || "Free trial download limit reached (1 research PDF included). Upgrade to Student (₹350/mo) or Scholar (₹750/mo) for unlimited downloads.";
+      
+      // Open Subscription Gate or Alert
+      alert(`Download Limit Notice:\n\n${msg}`);
+      switchTab("member");
+      return;
+    }
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || `Server returned error ${res.status}`);
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `FMM_Iconography_Study_${studyId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    if (typeof showToast === "function") {
+      showToast("Download Complete: Saved High-Resolution Archival PDF!");
+    }
+  } catch (err) {
+    console.error("PDF download error:", err);
+    alert(`PDF Download Error:\n${err.message}`);
+  }
+};
+
+// ============================================================================
+// STUDENT ONBOARDING & CURATOR APPROVAL QUEUE
+// ============================================================================
+window.openStudentApplyModal = function() {
+  if (!state.currentUser) {
+    alert("Please sign in or start your session before submitting student verification proof.");
+    openAuthModal();
+    return;
+  }
+  const modal = document.getElementById("studentApplyModal");
+  if (modal) modal.classList.add("active");
+};
+
+window.handleStudentApplySubmit = async function(event) {
+  if (event) event.preventDefault();
+
+  const instInput = document.getElementById("studentInstitutionInput");
+  const fileInput = document.getElementById("studentProofFileInput");
+  const btn = document.getElementById("studentSubmitBtn");
+
+  const institution = (instInput ? instInput.value : "").trim();
+  const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+
+  if (!institution || !file) {
+    alert("Please provide both the institution name and student ID document.");
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Uploading & Submitting Proof...";
+  }
+
+  const formData = new FormData();
+  formData.append("institution_name", institution);
+  formData.append("id_proof_file", file);
+
+  try {
+    const res = await fetch(`${API_BASE}/api/membership/student-apply`, {
+      method: "POST",
+      body: formData
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Submission failed");
+
+    closeModal("studentApplyModal");
+    alert(`Application Submitted Successfully!\n\n${data.message}\nSub ID: ${data.subscription_id}\nStatus: Pending Curator Review\n\nYou will be notified upon verification.`);
+    if (typeof showToast === "function") {
+      showToast("Student ID submitted! Pending curator verification.");
+    }
+    if (instInput) instInput.value = "";
+    if (fileInput) fileInput.value = "";
+  } catch (err) {
+    console.error("Student application error:", err);
+    alert("Error submitting student application: " + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span><img src="assets/icons/pramana-check.svg" class="fmm-icon" alt="" /></span> Submit for Curator Approval';
+    }
+  }
+};
+
+window.loadStudentApplications = async function() {
+  const container = document.getElementById("studentQueueContainer");
+  if (!container) return;
+
+  container.innerHTML = `
+    <div style="text-align:center; padding:30px;">
+      <img src="assets/icons/dharma-chakra.svg" class="fmm-icon rotating-chakra" style="width:24px; height:24px;" alt="" />
+      <div style="margin-top:8px; color:var(--muted); font-size:13px;">Loading student applications...</div>
+    </div>
+  `;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/student-applications`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const apps = data.applications || [];
+
+    if (apps.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center; padding:30px; color:var(--muted); font-size:13px;">
+          No student applications currently in the verification queue.
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = `
+      <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--line); color:var(--muted); font-size:11px; text-transform:uppercase;">
+            <th style="padding:10px 8px;">Applicant</th>
+            <th style="padding:10px 8px;">Institution</th>
+            <th style="padding:10px 8px;">ID Proof Document</th>
+            <th style="padding:10px 8px;">Status</th>
+            <th style="padding:10px 8px; text-align:right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${apps.map(a => `
+            <tr style="border-bottom:1px solid var(--line);">
+              <td style="padding:12px 8px;">
+                <strong>${sanitizeHTML(a.full_name || 'Student')}</strong><br/>
+                <span style="font-size:11.5px; color:var(--muted);">${sanitizeHTML(a.email || '')}</span>
+              </td>
+              <td style="padding:12px 8px;">${sanitizeHTML(a.institution_name || 'N/A')}</td>
+              <td style="padding:12px 8px;">
+                ${a.id_proof_url ? `
+                  <a href="${formatImageUrl(a.id_proof_url)}" target="_blank" class="sample-btn" style="padding:4px 8px; font-size:11.5px; display:inline-flex; align-items:center; gap:4px;">
+                    <img src="assets/icons/drishti-lens.svg" class="fmm-icon" style="width:12px; height:12px;" alt="" /> View ID Proof
+                  </a>
+                ` : '<span style="color:var(--muted);">No document</span>'}
+              </td>
+              <td style="padding:12px 8px;">
+                <span class="badge" style="background:${a.verification_status === 'approved' ? 'rgba(34,197,94,0.15)' : 'rgba(234,179,8,0.15)'}; color:${a.verification_status === 'approved' ? '#15803d' : '#a16207'}; font-size:11px; font-weight:700;">
+                  ${sanitizeHTML(a.verification_status || 'pending')}
+                </span>
+              </td>
+              <td style="padding:12px 8px; text-align:right;">
+                ${a.verification_status === 'pending' || a.verification_status === 'submitted' ? `
+                  <button class="btn-primary" onclick="reviewStudentApplication('${a.subscription_id}', 'approve')" style="padding:5px 12px; font-size:11.5px; margin-right:4px;">
+                    ✓ Approve (&#8377;350)
+                  </button>
+                  <button class="btn-secondary" onclick="reviewStudentApplication('${a.subscription_id}', 'reject')" style="padding:5px 10px; font-size:11.5px; color:var(--danger); border-color:var(--danger);">
+                    Reject
+                  </button>
+                ` : `
+                  <span style="font-size:11.5px; color:var(--muted);">Processed (${a.verified_by || 'curator'})</span>
+                `}
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  } catch (err) {
+    console.error("Failed to load applications:", err);
+    container.innerHTML = `<div style="color:var(--danger); padding:20px;">Failed to load queue: ${err.message}</div>`;
+  }
+};
+
+window.reviewStudentApplication = async function(subId, action) {
+  if (!confirm(`Are you sure you want to ${action.toUpperCase()} this student application?`)) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/student-applications/${subId}/review`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: action })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Review action failed");
+
+    if (typeof showToast === "function") {
+      showToast(data.message || `Application ${action}d successfully`);
+    }
+    loadStudentApplications();
+  } catch (err) {
+    alert("Error processing review: " + err.message);
+  }
 };
 
 
@@ -3638,7 +4203,7 @@ window.toggleHero3DMode = function(mode) {
   if (mode === "knot") {
     showToast("Sacred Geometry 3D Active · Click the knot to inspect sthapati proportions");
   } else {
-    showToast("Bronze Gallery 3D Active · Click any sacred plate to inspect monograph");
+    showToast("Bronze Gallery 3D Active · Click any sacred plate to inspect iconograph");
   }
 };
 
@@ -3699,9 +4264,9 @@ const CRUD_CONFIG = {
     columns: ["id", "study_id", "raw_suggested_term", "suggested_taxonomy_type", "confidence_score", "review_status"]
   },
 
-  // ── SILVER LAYER: T_ODS (Curated Monographs / Dictionaries / Catalog) ─────
+  // ── SILVER LAYER: T_ODS (Curated Iconographs / Dictionaries / Catalog) ─────
   studies: {
-    title: "T_ODS_STUDIES — Research Monographs & Canonical Studies",
+    title: "T_ODS_STUDIES — Research Iconographs & Canonical Studies",
     layer: "ods",
     pk: "id",
     fields: [

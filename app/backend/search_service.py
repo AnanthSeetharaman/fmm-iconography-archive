@@ -394,6 +394,7 @@ def scholar_search(
                 "slide_title": sl_title,
                 "image_url": sl_img,
                 "caption": sl_caption,
+                "cleaned_text": sl_text,
                 "has_term_hit": has_hit,
                 "hit_detail": hit_detail,
                 "snippet": sl_snippet,

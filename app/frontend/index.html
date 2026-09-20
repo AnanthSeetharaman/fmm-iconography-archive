@@ -93,6 +93,9 @@
         <button class="nav-tab-btn active" data-tab="search">
           <span><img src="assets/icons/shastra-search.svg" class="fmm-icon" alt="" /></span> Archive
         </button>
+        <button class="nav-tab-btn" data-tab="collections">
+          <span><img src="assets/icons/dharma-chakra.svg" class="fmm-icon" alt="" /></span> Collections
+        </button>
         <button class="nav-tab-btn role-gated-tab" data-tab="ocr_studio" data-role-required="curator,admin">
           <span><img src="assets/icons/silpa-camera.svg" class="fmm-icon" alt="" /></span> Visual OCR Studio
           <!-- <span class="badge">Layer 2</span> -->
@@ -166,38 +169,56 @@
     </header>
 
     <!-- ==================================================================== -->
-    <!-- SCREEN 1: SCHOLAR SEARCH & 3D BRONZE ARCHIVE                        -->
+    <!-- SCREEN 1: SCHOLAR SEARCH & SACRED ICONOGRAPH ARCHIVE                 -->
     <!-- ==================================================================== -->
     <section class="screen-pane active" id="tab-search">
-      <!-- Wireframe Hero Section with Three.js Centerpiece -->
+      <!-- Wireframe Hero Section with Sacred Iconograph Carousel -->
       <div class="fmm-hero">
         <div class="hero-left">
           <div class="hero-eyebrow">Five Metal Masonry · Independent Archive</div>
           <h1 class="hero-headline">Symbols. Objects. Stories.</h1>
           <p class="hero-description">
-            A home for Five Metal Masonry's iconography studies — designed for serious
-            enthusiasts, students and readers beyond the limits of social media.
+            A permanent digital repository for Five Metal Masonry's sacred iconography studies — designed for serious
+            enthusiasts, students, and scholars beyond the transient feed of social media.
           </p>
           <div class="hero-buttons">
-            <!-- <button class="btn-primary" onclick="document.getElementById('scholarSearchInput').focus()">
-              <span><img src="assets/icons/shastra-search.svg" class="fmm-icon" alt="" /></span> Explore Studies
+            <button class="btn-primary" onclick="switchTab('collections')">
+              <span><img src="assets/icons/dharma-chakra.svg" class="fmm-icon" alt="" /></span> Browse Collections
             </button>
-            <button class="btn-secondary" onclick="window.location.hash='#admin_studio'">
-              <span><img src="assets/icons/vimana-temple.svg" class="fmm-icon" alt="" /></span> 4-Tier Architecture
-            </button> -->
+            <button class="btn-secondary" onclick="document.getElementById('scholarSearchInput').focus()">
+              <span><img src="assets/icons/shastra-search.svg" class="fmm-icon" alt="" /></span> Search Archive
+            </button>
           </div>
           <div class="hero-tags-row">
-            <!-- <span class="hero-tag-pill">🏛️ Sukhasana Shiva</span> -->
-            <!-- <span class="hero-tag-pill">🐘 Samabhanga Ganesha</span> -->
-            <span class="hero-tag-pill">🐘 Shilpa Shastra Iconometry</span>
+            <span class="hero-tag-pill">🐘 Samabhanga Ganesha (Public)</span>
+            <span class="hero-tag-pill">🔥 Nataraja Ananda Tandava</span>
+            <span class="hero-tag-pill">📜 Shilpa Shastra Iconometry</span>
           </div>
         </div>
 
-        <!-- Three.js Interactive 3D Sacred Bronze Tablet -->
+        <!-- Sacred Iconograph Interactive Slide Carousel (Replaced 3D) -->
         <div class="hero-right">
-          <div id="hero3DContainer" class="hero-3d-canvas-box"></div>
+          <div id="heroCarouselContainer" class="hero-carousel-box">
+            <div class="hero-carousel-slide">
+              <div class="hero-slide-badge" id="heroSlideBadge">Public Study · Plate 1 of 4</div>
+              <div class="hero-slide-img-wrap" onclick="handleHeroSlideClick()">
+                <img id="heroSlideImg" src="/storage/images/ganesa-variations-in-iconography/slide_1.png" alt="Sacred Bronze Plate" />
+                <div class="hero-slide-overlay">
+                  <span class="hero-slide-inspect-hint">Click to Inspect Full Iconograph</span>
+                </div>
+              </div>
+              <div class="hero-carousel-controls">
+                <button class="hero-carousel-btn prev-btn" onclick="prevHeroSlide()" title="Previous Plate">&larr;</button>
+                <div class="hero-carousel-meta">
+                  <div class="hero-slide-title" id="heroSlideTitle">Ganesha with Arch &amp; Asina Mudra</div>
+                  <div class="hero-slide-sub" id="heroSlideSub">Navatala Proportion · Lost-Wax Panchaloha Bronze</div>
+                </div>
+                <button class="hero-carousel-btn next-btn" onclick="nextHeroSlide()" title="Next Plate">&rarr;</button>
+              </div>
+            </div>
+          </div>
           <div class="hero-3d-caption">
-            <span class="caption-bullet">✦</span> 3D Sacred Shilpa Shastra Tablet · Drag to rotate · Hover to tilt
+            <span class="caption-bullet">✦</span> Sacred Iconograph Slide Carousel · Featured Studies &amp; Public Plates
           </div>
         </div>
       </div>
@@ -254,6 +275,38 @@
 
       <!-- Dynamic Study Results Container -->
       <div id="scholarResultsContainer"></div>
+    </section>
+
+    <!-- ==================================================================== -->
+    <!-- SCREEN 1.5: SACRED COLLECTIONS SHOWCASE (fivemetalmasonry.com)       -->
+    <!-- ==================================================================== -->
+    <section class="screen-pane" id="tab-collections">
+      <div class="collections-hero-header">
+        <div class="collections-eyebrow">Panchaloha Sacred Bronzes · Curated Collections</div>
+        <h2 class="collections-title">Sacred Iconography Collections</h2>
+        <p class="collections-subtitle">
+          Masterpiece Panchaloha bronze studies sculpted according to Shilpa Shastra proportions,
+          temple iconometry, and living heritage traditions.
+        </p>
+
+        <!-- Collection Theme Filters Toolbar -->
+        <div class="collections-filter-strip">
+          <button class="col-filter-btn active" data-filter="all" onclick="filterCollections('all')">All Collections</button>
+          <button class="col-filter-btn" data-filter="Ganesha Collection" onclick="filterCollections('Ganesha Collection')">Ganesha (Public)</button>
+          <button class="col-filter-btn" data-filter="Nataraja & Shiva Icons" onclick="filterCollections('Nataraja & Shiva Icons')">Nataraja &amp; Shiva</button>
+          <button class="col-filter-btn" data-filter="Krishna & Vaishnava" onclick="filterCollections('Krishna & Vaishnava')">Krishna &amp; Vaishnava</button>
+          <button class="col-filter-btn" data-filter="Devi & Amman Sacred Bronzes" onclick="filterCollections('Devi & Amman Sacred Bronzes')">Devi &amp; Amman</button>
+          <button class="col-filter-btn" data-filter="Masterpieces" onclick="filterCollections('Masterpieces')">Masterpieces</button>
+        </div>
+      </div>
+
+      <!-- Luxury Sacred Bronze Collections Grid -->
+      <div class="collections-cards-grid" id="collectionsCardsGrid">
+        <div class="loading-state-box">
+          <div class="pulse-dot"></div>
+          <span>Loading Panchaloha Sacred Collections...</span>
+        </div>
+      </div>
     </section>
 
     <!-- ==================================================================== -->
@@ -413,7 +466,7 @@
               </div>
             </div>
 
-            <!-- TARGET RESEARCH MONOGRAPH SELECTOR CARD -->
+            <!-- TARGET RESEARCH ICONOGRAPH SELECTOR CARD -->
             <div class="target-study-selector-card" id="targetStudyCard"
               style="margin-bottom:16px; background:var(--paper-sunken); border:1px solid var(--line); border-radius:var(--radius-md); padding:14px 18px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -489,7 +542,7 @@
                 style="font-size:12px; color:var(--muted); margin-top:10px; display:flex; flex-direction:column; gap:4px;">
                 <div>Storage URI: <code id="ocrStorageUri"
                     style="color:var(--accent); word-break:break-all;">/storage/images/...</code></div>
-                <div>Target Research Monograph: <strong id="ocrTargetMonographDisplay"
+                <div>Target Research Iconograph: <strong id="ocrTargetMonographDisplay"
                     style="color:var(--ink);">Ganesha: Variations in Iconography (Study 001)</strong></div>
               </div>
             </div>
@@ -599,7 +652,7 @@
               style="width:24px; height:24px;" alt="Studies" /></div>
           <div>
             <div class="telemetry-kpi-val" id="statTotalStudies">6</div>
-            <div class="telemetry-kpi-lbl">Monographs</div>
+            <div class="telemetry-kpi-lbl">Iconographs</div>
           </div>
         </div>
         <div class="telemetry-kpi-card">
@@ -653,6 +706,10 @@
         <button class="studio-mode-btn" id="btnModeCrud" type="button">
           <img src="assets/icons/sthapati-chisel.svg" class="fmm-icon" style="width:16px; height:16px;" alt="" />
           <span>Curatorial &amp; Maintenance</span>
+        </button>
+        <button class="studio-mode-btn" id="btnModeStudents" type="button">
+          <img src="assets/icons/padma-scholar.svg" class="fmm-icon" style="width:16px; height:16px;" alt="" />
+          <span>Student Approvals Queue</span>
         </button>
       </div>
 
@@ -817,7 +874,7 @@
 
             <!-- studies -->
             <div class="er-table-card ods" data-layer="ods" data-table="studies" onclick="openCrudForTable('studies')"
-              title="T_ODS_STUDIES — Scholarly monographs">
+              title="T_ODS_STUDIES — Scholarly iconographs & studies">
               <div class="er-table-header ods">
                 <span class="er-table-name">studies</span>
                 <span class="er-table-tag">T_ODS_STUDIES</span>
@@ -1320,7 +1377,7 @@
               <div class="loop-step-num">7</div>
               <div class="loop-step-title">Instant Search Auto-Focus</div>
               <div class="loop-step-desc">Queries for <em>"mudra"</em>, <em>"hasta"</em>, or <em>"shikhara"</em>
-                immediately re-rank the monograph and auto-focus on the exact plate.</div>
+                immediately re-rank the iconograph and auto-focus on the exact plate.</div>
               <span class="loop-step-badge">Zero Redeployment</span>
             </div>
           </div>
@@ -1431,7 +1488,7 @@
                   <h3 id="currentTableNameHeading" class="hero-table-title">T_ODS_STUDIES</h3>
                   <code id="currentTableRawName" class="hero-raw-code">studies</code>
                 </div>
-                <div id="currentTableDesc" class="hero-table-desc">Core research monographs, access tiers &amp;
+                <div id="currentTableDesc" class="hero-table-desc">Core research iconographs, access tiers &amp;
                   publication metadata</div>
               </div>
               <div class="inspector-hero-right">
@@ -1510,7 +1567,7 @@
 
               <!-- 🔵 GOLD ODS LAYER -->
               <button class="crud-tab-btn medal-ods active" data-crud="studies" data-layer="ods"
-                title="T_ODS_STUDIES — Research Monographs">
+                title="T_ODS_STUDIES — Research Iconographs">
                 <span class="layer-mini-tag ods">ODS</span> Studies (<span id="crudCount_studies">7</span>)
               </button>
               <button class="crud-tab-btn medal-ods" data-crud="series" data-layer="ods"
@@ -1623,6 +1680,25 @@
             </div>
           </div>
         </div>
+
+        <!-- ================================================================ -->
+        <!-- VIEW 5: STUDENT VERIFICATION & ONBOARDING QUEUE                  -->
+        <!-- ================================================================ -->
+        <div id="dataStudioStudentsView" class="studio-view-pane" style="display:none; padding:20px; background:var(--paper-raised); border:1px solid var(--line); border-radius:var(--radius-md);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <div>
+              <h3 style="font-family:var(--font-serif); font-size:18px; margin:0 0 4px 0; color:var(--ink);">Student Scholar Verification Queue</h3>
+              <p style="font-size:12.5px; color:var(--muted); margin:0;">Review student ID proof documents submitted during onboarding for &#8377;350/mo subsidized access.</p>
+            </div>
+            <button class="sample-btn" onclick="loadStudentApplications()" style="padding:6px 14px; font-size:12px;">
+              <span><img src="assets/icons/dharma-chakra.svg" class="fmm-icon" alt="" /></span> Refresh Queue
+            </button>
+          </div>
+
+          <div id="studentQueueContainer" style="overflow-x:auto;">
+            <div style="text-align:center; padding:30px; color:var(--muted);">Click Refresh to load student verification queue.</div>
+          </div>
+        </div>
       </div>
 
     </section>
@@ -1681,7 +1757,7 @@
             </div>
             <div class="fact-item">
               <b>Independent Digital Archive</b>
-              <span>Permanent, high-resolution study monographs beyond the transient feed of social media.</span>
+              <span>Permanent, high-resolution study iconographs beyond the transient feed of social media.</span>
             </div>
             <div class="fact-item">
               <b>OCR Ingestion</b>
@@ -1699,104 +1775,95 @@
     </section>
 
     <!-- ==================================================================== -->
-    <!-- SCREEN 6: MEMBER ACCESS (From Wireframe)                             -->
+    <!-- SCREEN 6: MEMBER ACCESS & MEMBERSHIP TIERS                           -->
     <!-- ==================================================================== -->
     <section class="screen-pane" id="tab-member">
       <div class="apple-membership">
 
         <!-- Hero -->
         <div class="apple-member-hero">
-          <p class="apple-eyebrow">Scholar Membership</p>
-          <h2 class="apple-hero-title">Go deeper into<br>the collection.</h2>
+          <p class="apple-eyebrow">Scholarship &amp; Research Access</p>
+          <h2 class="apple-hero-title">Delve Deep into the Sacred Canon</h2>
           <p class="apple-hero-subtitle">
-            Museum-grade archival plates, verified Sanskrit transcriptions,
-            and canonical iconometric measurements &mdash; all in one living archive.
+            Museum-grade 300 DPI archival plates, verified Sanskrit IAST epigraphy,
+            canonical iconometric proportions (Talamana), and uncompressed research downloads.
           </p>
         </div>
 
         <!-- Tier Cards -->
         <div class="apple-tiers">
 
-          <!-- Guest -->
+          <!-- 15-Day Free Trial -->
           <div class="apple-tier-card">
             <div class="apple-tier-head">
               <div class="apple-tier-icon"><img src="assets/icons/grantha-lexicon.svg" class="fmm-icon" alt="" /></div>
-              <h3 class="apple-tier-name">Guest</h3>
-              <div class="apple-tier-price">Free</div>
-              <p class="apple-tier-tagline">Browse the archive and explore featured studies.</p>
+              <h3 class="apple-tier-name">Free Trial</h3>
+              <div class="apple-tier-price">15 Days<span class="apple-price-note">access</span></div>
+              <p class="apple-tier-tagline">Explore the archive and start with canonical studies.</p>
             </div>
             <div class="apple-tier-divider"></div>
             <ul class="apple-feature-list">
-              <li class="apple-feature-yes"><span class="apple-check"></span> Browse all featured studies</li>
-              <li class="apple-feature-yes"><span class="apple-check"></span> Search the iconography corpus</li>
-              <li class="apple-feature-yes"><span class="apple-check"></span> View Study 001 (Ganesa) full slides</li>
-              <li class="apple-feature-yes"><span class="apple-check"></span> Dictionary of Iconography</li>
-              <li class="apple-feature-no">Full monograph slide carousels</li>
-              <li class="apple-feature-no">300 DPI archival plate downloads</li>
-
+              <li class="apple-feature-yes"><span class="apple-check"></span> 15-day full archival access</li>
+              <li class="apple-feature-yes"><span class="apple-check"></span> Full access to Study 001 (Ganesa Variations)</li>
+              <li class="apple-feature-yes"><span class="apple-check"></span> Search entire iconography corpus</li>
+              <li class="apple-feature-yes"><span class="apple-check"></span> Dictionary of Shilpa Shastra terms</li>
+              <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> <strong>1 High-Res PDF Download</strong> included</li>
+              <li class="apple-feature-no">Unlimited PDF downloads</li>
             </ul>
             <div class="apple-tier-cta">
-              <button class="apple-btn apple-btn-outline" disabled>Current Access</button>
+              <button class="apple-btn apple-btn-outline" onclick="openAuthModal()">Start 15-Day Free Trial</button>
             </div>
           </div>
 
-          <!-- Scholar -->
+          <!-- Student Tier (₹350/mo - Requires ID Proof) -->
           <div class="apple-tier-card">
+            <div class="apple-featured-badge" style="background:#4A7C59;">Student Discount</div>
             <div class="apple-tier-head">
               <div class="apple-tier-icon"><img src="assets/icons/padma-scholar.svg" class="fmm-icon" alt="" /></div>
-              <h3 class="apple-tier-name">Scholar</h3>
-              <div class="apple-tier-price">Free<span class="apple-price-note">account</span></div>
-              <p class="apple-tier-tagline">Sign in to save progress and track your studies.</p>
+              <h3 class="apple-tier-name">Student Scholar</h3>
+              <div class="apple-tier-price"><span class="apple-currency">&#8377;</span>350<span class="apple-price-note">/month</span></div>
+              <p class="apple-tier-tagline">Subsidized research tier for university &amp; gurukula students.</p>
             </div>
             <div class="apple-tier-divider"></div>
             <ul class="apple-feature-list">
-              <li class="apple-feature-section">Everything in Guest, plus:</li>
-              <li class="apple-feature-yes"><span class="apple-check"></span> Personalized search history</li>
-              <li class="apple-feature-yes"><span class="apple-check"></span> Study 001 &amp; 002 full slide access</li>
-              <li class="apple-feature-yes"><span class="apple-check"></span> Autocomplete &amp; taxonomy browsing</li>
-              <li class="apple-feature-yes"><span class="apple-check"></span> Preview slides for premium studies</li>
-              <li class="apple-feature-no">Full premium monograph access</li>
-              <li class="apple-feature-no">300 DPI archival downloads</li>
+              <li class="apple-feature-section">Everything in Free Trial, plus:</li>
+              <li class="apple-feature-yes"><span class="apple-check"></span> Requires Student ID / Proof on signup</li>
+              <li class="apple-feature-yes"><span class="apple-check"></span> Curator review &amp; expedited verification</li>
+              <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> <strong>All Iconographs &amp; Slides</strong> unlocked</li>
+              <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> <strong>Unlimited 300 DPI PDF</strong> downloads</li>
+              <li class="apple-feature-yes"><span class="apple-check"></span> Canonical measurement overlays</li>
             </ul>
             <div class="apple-tier-cta">
-              <button class="apple-btn apple-btn-fill" onclick="openAuthModal()">Create Free Account</button>
+              <button class="apple-btn apple-btn-fill" onclick="openStudentApplyModal()" style="background-color: #4A7C59; color: #fff;">
+                Apply with Student ID (&#8377;350/mo)
+              </button>
             </div>
           </div>
 
-          <!-- Scholar Pro (Featured) -->
+          <!-- Scholar (Featured - ₹750/mo) -->
           <div class="apple-tier-card apple-tier-featured">
-            <div class="apple-featured-badge">Recommended</div>
+            <div class="apple-featured-badge">Instant Access</div>
             <div class="apple-tier-head">
               <div class="apple-tier-icon"><img src="assets/icons/varaha-coin.svg" class="fmm-icon" alt="" /></div>
               <h3 class="apple-tier-name">Scholar Pro</h3>
-              <div class="apple-tier-price"><span class="apple-currency">&#8377;</span>499<span
-                  class="apple-price-note">/year</span></div>
-              <p class="apple-tier-tagline">Unlock the complete archive with unrestricted access.</p>
+              <div class="apple-tier-price"><span class="apple-currency">&#8377;</span>750<span class="apple-price-note">/month</span></div>
+              <p class="apple-tier-tagline">Instant activation with no proof needed. Complete unrestricted access.</p>
             </div>
             <div class="apple-tier-divider"></div>
             <ul class="apple-feature-list">
-              <li class="apple-feature-section">Everything in Scholar, plus:</li>
-              <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> All monographs
-                with
-                full slides</li>
-              <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> 300 DPI archival
-                plate downloads</li>
-
-              <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> Canonical
-                measurement overlays</li>
-              <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> Priority curator
-                support</li>
-              <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> Early access to
-                new
-                studies</li>
+              <li class="apple-feature-section">Everything in Student Scholar, plus:</li>
+              <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> <strong>Instant activation (No ID proof needed)</strong></li>
+              <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> All iconographs with full slide carousels</li>
+              <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> Unlimited 300 DPI PDF downloads</li>
+              <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> Priority curator epigraphy support</li>
+              <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> Early access to newly ingested studies</li>
             </ul>
             
             <div class="apple-tier-cta">
               <button class="apple-btn apple-btn-fill" id="memberTabPayBtn" onclick="initiateRazorpayPayment();" style="background-color: #B58B4B; color: #fff; width: 100%;">
-                Upgrade to Scholar Pro
+                Upgrade to Scholar (&#8377;750/mo)
               </button>
             </div>
-
           </div>
 
         </div>
@@ -1805,14 +1872,14 @@
         <div class="apple-value-strip">
           <div class="apple-value-item">
             <div class="apple-value-icon"><img src="assets/icons/drishti-lens.svg" class="fmm-icon" alt="" /></div>
-            <h4>300 DPI Archival Plates</h4>
-            <p>Museum-grade high-resolution plates for research, publication, and personal study.</p>
+            <h4>300 DPI Archival Plates &amp; PDF Export</h4>
+            <p>Museum-grade vector research iconographs formatted for printing, epigraphical study, and publication.</p>
           </div>
 
           <div class="apple-value-item">
             <div class="apple-value-icon"><img src="assets/icons/dharma-chakra.svg" class="fmm-icon" alt="" /></div>
-            <h4>Living Archive</h4>
-            <p>New studies and plates added monthly. Your membership grows the collection.</p>
+            <h4>Living Panchaloha Archive</h4>
+            <p>New research studies and high-resolution lost-wax plates added continuously by master sthapatis.</p>
           </div>
         </div>
 
@@ -1821,7 +1888,102 @@
   </div> <!-- /.app-shell -->
 
   <!-- ==================================================================== -->
-  <!-- MODAL: CREATE NEW RESEARCH MONOGRAPH / STUDY                         -->
+  <!-- MODAL: STUDENT ID APPLICATION & PROOF UPLOAD                         -->
+  <!-- ==================================================================== -->
+  <div class="modal-backdrop" id="studentApplyModal">
+    <div class="modal-dialog" style="max-width:540px;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <img src="assets/icons/padma-scholar.svg" class="fmm-icon" style="width:24px; height:24px;" alt="" />
+          <div>
+            <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.12em; color:var(--accent); font-weight:700;">Student Onboarding</span>
+            <h3 style="font-family:var(--font-serif); font-size:19px; margin:2px 0 0 0;">Student Scholar Application (&#8377;350/mo)</h3>
+          </div>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('studentApplyModal')">&times;</button>
+      </div>
+      <div style="padding:22px;">
+        <p style="font-size:13.5px; color:var(--ink-soft); line-height:1.6; margin-bottom:16px;">
+          Please upload your valid University ID Card, College ID, or Gurukula Enrollment proof to activate the subsidized &#8377;350/month rate.
+          Our curators review and approve submissions within 12&ndash;24 hours.
+        </p>
+        <form id="studentApplyForm" onsubmit="handleStudentApplySubmit(event)">
+          <div style="margin-bottom:14px;">
+            <label style="display:block; font-size:12.5px; font-weight:700; color:var(--ink); margin-bottom:5px;">
+              University / Institution Name <span style="color:var(--danger);">*</span>
+            </label>
+            <input type="text" id="studentInstitutionInput" required class="form-input"
+              placeholder="e.g. University of Madras / National Institute of Design"
+              style="width:100%; padding:9px 12px; font-size:13.5px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--paper); color:var(--ink);" />
+          </div>
+
+          <div style="margin-bottom:18px;">
+            <label style="display:block; font-size:12.5px; font-weight:700; color:var(--ink); margin-bottom:5px;">
+              Upload Student ID Card / Proof (Image / PDF) <span style="color:var(--danger);">*</span>
+            </label>
+            <input type="file" id="studentProofFileInput" required accept="image/*,.pdf"
+              style="width:100%; padding:9px 12px; font-size:12.5px; border:1px dashed var(--accent); border-radius:var(--radius-sm); background:var(--paper-sunken); color:var(--ink);" />
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:10px;">
+            <button type="button" class="btn-secondary" onclick="closeModal('studentApplyModal')" style="padding:9px 18px;">Cancel</button>
+            <button type="submit" class="btn-primary" id="studentSubmitBtn" style="padding:9px 22px;">
+              <span><img src="assets/icons/pramana-check.svg" class="fmm-icon" alt="" /></span> Submit for Curator Approval
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================================================================== -->
+  <!-- MODAL: STUDY NOTES & FULL OCR CORPUS VIEWER                          -->
+  <!-- ==================================================================== -->
+  <div class="modal-backdrop" id="studyNotesModal">
+    <div class="modal-dialog" style="max-width:760px; max-height:90vh; display:flex; flex-direction:column;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <img src="assets/icons/grantha-lexicon.svg" class="fmm-icon" style="width:24px; height:24px;" alt="" />
+          <div>
+            <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.12em; color:var(--accent); font-weight:700;">Iconographical Documentation</span>
+            <h3 style="font-family:var(--font-serif); font-size:19px; margin:2px 0 0 0;" id="studyNotesModalTitle">Study Notes &amp; OCR Corpus</h3>
+          </div>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('studyNotesModal')">&times;</button>
+      </div>
+      <div style="padding:22px; overflow-y:auto; flex:1;">
+        <!-- Curatorial Abstract -->
+        <div style="margin-bottom:20px;">
+          <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent); margin-bottom:6px;">Curatorial Abstract &amp; Scope:</div>
+          <div id="studyNotesAbstract" style="font-size:14px; line-height:1.65; color:var(--ink); background:var(--paper-sunken); padding:14px 18px; border-radius:var(--radius-md); border:1px solid var(--line);"></div>
+        </div>
+
+        <!-- Default Extracted OCR Epigraphy Corpus -->
+        <div style="margin-bottom:20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent);">Extracted Inscription &amp; Shilpa Shastra OCR Corpus:</div>
+            <button class="sample-btn" onclick="copyOcrCorpusText()" style="padding:3px 8px; font-size:11px;">Copy Text</button>
+          </div>
+          <div id="studyNotesOcrCorpus" style="font-family:'Courier New', monospace; font-size:13px; line-height:1.7; color:var(--ink); background:rgba(181, 139, 75, 0.08); padding:16px; border-radius:var(--radius-md); border:1px solid var(--gold); max-height:220px; overflow-y:auto; white-space:pre-wrap;"></div>
+        </div>
+
+        <!-- Controlled Taxonomy Terms -->
+        <div>
+          <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent); margin-bottom:8px;">Controlled Iconographic Taxonomy:</div>
+          <div id="studyNotesTaxonomyGrid" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+        </div>
+      </div>
+      <div style="padding:14px 22px; background:var(--paper-sunken); border-top:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;">
+        <button class="btn-secondary" onclick="closeModal('studyNotesModal')">Close</button>
+        <button class="btn-primary" id="studyNotesPdfBtn" onclick="handleStudyNotesPdfDownload()">
+          <span><img src="assets/icons/tamra-download.svg" class="fmm-icon" alt="" /></span> Download as PDF
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================================================================== -->
+  <!-- MODAL: CREATE NEW RESEARCH ICONOGRAPH / STUDY                         -->
   <!-- ==================================================================== -->
   <div class="modal-backdrop" id="newStudyModal">
     <div class="modal-dialog" style="max-width:560px;">
@@ -1832,7 +1994,7 @@
             <span
               style="font-size:11px; text-transform:uppercase; letter-spacing:0.12em; color:var(--accent); font-weight:700;">Curatorial
               Architecture</span>
-            <h3 style="font-family:var(--font-serif); font-size:19px; margin:2px 0 0 0;">Create Research Monograph</h3>
+            <h3 style="font-family:var(--font-serif); font-size:19px; margin:2px 0 0 0;">Create Research Iconograph</h3>
           </div>
         </div>
         <button class="modal-close-btn" onclick="closeModal('newStudyModal')">&times;</button>
@@ -1841,7 +2003,7 @@
         <form id="newStudyForm" onsubmit="handleNewStudyFormSubmit(event)">
           <div style="margin-bottom:14px;">
             <label style="display:block; font-size:12.5px; font-weight:700; color:var(--ink); margin-bottom:5px;">
-              Monograph Title <span style="color:var(--danger);">*</span>
+              Iconograph Title <span style="color:var(--danger);">*</span>
             </label>
             <input type="text" id="newStudyTitleInput" required class="form-input"
               placeholder="e.g. Mudra Lexicon: Sacred Hand Gestures"
@@ -1893,8 +2055,8 @@
               Tier</label>
             <select id="newStudyAccessSelect" class="filter-select"
               style="width:100%; padding:9px 12px; font-size:13px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--paper); color:var(--ink);">
-              <option value="public" selected>Public (Free access to all scholars)</option>
-              <option value="scholar_pro">Scholar Pro (Premium subscription monograph)</option>
+              <option value="member_only" selected>Scholar Pro (Premium subscription iconograph)</option>
+              <option value="public">Public (Free access to all scholars)</option>
             </select>
           </div>
 
@@ -1913,13 +2075,13 @@
 
 
   <!-- ==================================================================== -->
-  <!-- MODAL: 3D STUDY MONOGRAPH INSPECTOR MODAL                            -->
+  <!-- MODAL: STUDY ICONOGRAPH INSPECTOR MODAL                              -->
   <!-- ==================================================================== -->
   <div class="modal-backdrop" id="studyDetailModal">
     <div class="modal-dialog study-modal-dialog">
       <div class="modal-header">
         <div class="modal-title-group">
-          <span class="modal-category" id="studyModalSeries">Iconography Archive · Monograph</span>
+          <span class="modal-category" id="studyModalSeries">Iconography Archive · Iconograph</span>
           <h3 class="modal-title" id="studyModalTitle">Study Detail</h3>
         </div>
         <button class="modal-close-btn" onclick="closeModal('studyDetailModal')">&times;</button>
@@ -1955,13 +2117,15 @@
           </div>
 
           <div class="study-modal-actions">
-            <button class="btn-primary" id="studyModalViewFeedBtn">
-              <span><img src="assets/icons/shastra-search.svg" class="fmm-icon" alt="" /></span> View in Full Study Feed
+            <button class="btn-primary" id="studyModalDownloadPdfBtn" style="background:var(--accent); color:#fff;">
+              <span><img src="assets/icons/tamra-download.svg" class="fmm-icon" alt="" /></span> Download Iconograph (PDF)
+            </button>
+            <button class="btn-secondary" id="studyModalViewFeedBtn">
+              <span><img src="assets/icons/shastra-search.svg" class="fmm-icon" alt="" /></span> View in Full Feed
             </button>
             <button class="btn-secondary" id="studyModalLightboxBtn">
               <span><img src="assets/icons/drishti-lens.svg" class="fmm-icon" alt="" /></span> Inspect 300 DPI Plate
             </button>
-
           </div>
         </div>
       </div>
@@ -2220,7 +2384,7 @@
 
   <script src="assets/gallery_3d.js"></script>
   <script src="assets/hero_3d_iconography.js?v=3"></script>
-  <script src="app.js?v=21"></script>
+  <script src="app.js?v=22"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       if (window.FMMHeroIconography3D) {
@@ -2401,7 +2565,7 @@
         style="background: linear-gradient(135deg, #1a1612 0%, #2d241c 100%); border-bottom: 1px solid rgba(181,139,75,0.3);">
         <div class="modal-title-group">
           <span class="modal-category" style="color:var(--gold);">Scholar Pro Content</span>
-          <h3 class="modal-title" id="gateModalTitle" style="color:#fff;">Unlock This Monograph</h3>
+          <h3 class="modal-title" id="gateModalTitle" style="color:#fff;">Unlock This Iconograph</h3>
         </div>
         <button class="modal-close-btn" onclick="closeModal('subscriptionGateModal')"
           style="color:#fff;">&times;</button>

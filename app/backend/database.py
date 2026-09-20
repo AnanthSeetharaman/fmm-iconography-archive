@@ -369,6 +369,11 @@ def ensure_phase2_tables(conn):
         billing_cycle VARCHAR DEFAULT 'monthly',
         amount_inr DOUBLE DEFAULT 0.0,
         payment_due_amount DOUBLE DEFAULT 0.0,
+        id_proof_url VARCHAR,
+        verification_status VARCHAR DEFAULT 'approved',
+        institution_name VARCHAR,
+        verified_by VARCHAR,
+        verified_at TIMESTAMP,
         last_payment_date TIMESTAMP,
         next_billing_date TIMESTAMP,
         payment_method VARCHAR DEFAULT 'gpay',
@@ -409,18 +414,43 @@ def ensure_phase2_tables(conn):
     );
     """)
 
+    # Ensure new columns exist if table was already created
+    for col_def in [
+        ("id_proof_url", "VARCHAR"),
+        ("verification_status", "VARCHAR DEFAULT 'approved'"),
+        ("institution_name", "VARCHAR"),
+        ("verified_by", "VARCHAR"),
+        ("verified_at", "TIMESTAMP")
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE user_subscriptions ADD COLUMN {col_def[0]} {col_def[1]};")
+        except Exception:
+            pass
+
 
 def seed_param_config(conn):
     """Seeds default application configuration parameters."""
     count = conn.execute("SELECT COUNT(*) FROM param_config").fetchone()[0]
     if count > 0:
+        # Update existing parameters with new pricing/trial rules if present
+        try:
+            conn.execute("UPDATE param_config SET param_value = '15' WHERE param_key = 'trial_duration_days';")
+            conn.execute("UPDATE param_config SET param_value = '750' WHERE param_key = 'scholar_monthly_inr';")
+            conn.execute("UPDATE param_config SET param_value = '350' WHERE param_key = 'student_monthly_inr';")
+            conn.execute("UPDATE param_config SET param_value = '1' WHERE param_key = 'trial_download_limit';")
+        except Exception:
+            pass
         return
 
     import uuid
     configs = [
         # Pricing & Monetization
-        ("pricing", "scholar_pro_annual_inr", "499", "number", "Annual Scholar Pro membership price in INR", False),
+        ("pricing", "student_monthly_inr", "350", "number", "Monthly Student membership price in INR (requires ID review)", False),
+        ("pricing", "scholar_monthly_inr", "750", "number", "Monthly Scholar membership price in INR (instant access)", False),
+        ("pricing", "scholar_pro_annual_inr", "750", "number", "Monthly Scholar membership price in INR", False),
         ("pricing", "study_license_inr", "199", "number", "Individual study license price in INR", False),
+        ("pricing", "trial_duration_days", "15", "number", "Duration of free trial membership in days", False),
+        ("pricing", "trial_download_limit", "1", "number", "Maximum PDF downloads allowed during free trial", False),
         ("pricing", "currency_code", "INR", "string", "Default currency code", False),
         ("pricing", "payment_gateway", "gpay", "string", "Primary payment gateway (gpay, razorpay, stripe)", False),
 

@@ -10,7 +10,7 @@ from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, UploadFile, File, Form, Query, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse, RedirectResponse
+from fastapi.responses import JSONResponse, FileResponse, RedirectResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
 from config import IMAGES_STORAGE_DIR, FRONTEND_DIR, HOST, PORT, GOOGLE_CLIENT_ID, SESSION_COOKIE_NAME, APP_DIR, LLM_MODEL
@@ -34,12 +34,13 @@ from auth_service import (
     get_current_user_from_request
 )
 from razorpay_service import create_subscription_order, verify_payment_signature
+from pdf_service import generate_study_pdf
 
 # Initialize FastAPI App
 app = FastAPI(
     title="Five Metal Masonry (FMM) Iconography Archive API",
     description="Professional Scholar Archive with DuckDB, OCR Ingestion, Re-Ranking, Google OAuth, and DRM Protection",
-    version="1.3.0"
+    version="1.4.0"
 )
 
 app.add_middleware(
@@ -61,15 +62,15 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     # Permissions Policy (restrict camera, mic, geolocation)
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-    # CSP: Allow same-origin, Google fonts/CDN, Google Identity Services
+    # CSP: Allow same-origin, Google fonts/CDN, Google Identity Services, and Razorpay
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://cdnjs.cloudflare.com; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://cdnjs.cloudflare.com https://checkout.razorpay.com; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; "
         "font-src 'self' https://fonts.gstatic.com; "
-        "img-src 'self' data: https://images.unsplash.com https://*.googleusercontent.com blob:; "
-        "connect-src 'self' https://accounts.google.com; "
-        "frame-src https://accounts.google.com; "
+        "img-src 'self' data: https://images.unsplash.com https://*.googleusercontent.com https://*.razorpay.com blob:; "
+        "connect-src 'self' https://accounts.google.com https://api.razorpay.com https://lumberjack.razorpay.com https://*.razorpay.com; "
+        "frame-src https://accounts.google.com https://api.razorpay.com https://checkout.razorpay.com; "
         "object-src 'none'; "
         "base-uri 'self';"
     )
@@ -91,7 +92,7 @@ def check_active_subscription(user_id):
             """SELECT COUNT(*) FROM user_subscriptions 
                WHERE user_id = ? 
                  AND status = 'active' 
-                 AND tier IN ('trial_member', 'trial', 'scholar_pro', 'member', 'patron')
+                 AND tier IN ('trial_member', 'trial', 'student', 'scholar', 'scholar_pro', 'member', 'patron')
                  AND (next_billing_date IS NULL OR next_billing_date >= CURRENT_TIMESTAMP)""",
             (str(user_id),)
         ).fetchone()
@@ -101,7 +102,7 @@ def check_active_subscription(user_id):
         return False
 
 def ensure_trial_subscription(user_id: str, email: str = "") -> dict:
-    """Provisions a 30-day trial membership for users signing in via Google SSO or trial flow."""
+    """Provisions a 15-day trial membership for users signing in via Google SSO or trial flow."""
     conn = get_db()
     try:
         existing = conn.execute(
@@ -119,7 +120,7 @@ def ensure_trial_subscription(user_id: str, email: str = "") -> dict:
         sub_id = f"sub_trial_{uuid.uuid4().hex[:8]}"
         conn.execute("""
             INSERT INTO user_subscriptions (id, user_id, tier, status, billing_cycle, amount_inr, payment_due_amount, next_billing_date, payment_method)
-            VALUES (?, ?, 'trial_member', 'active', 'trial_30d', 0.0, 0.0, CURRENT_TIMESTAMP + INTERVAL 30 DAY, 'google_sso');
+            VALUES (?, ?, 'trial_member', 'active', 'trial_15d', 0.0, 0.0, CURRENT_TIMESTAMP + INTERVAL 15 DAY, 'google_sso');
         """, (sub_id, str(user_id)))
         conn.commit()
         return {
@@ -136,6 +137,11 @@ def ensure_trial_subscription(user_id: str, email: str = "") -> dict:
 
 # Mount Static Storage (Slide Images)
 app.mount("/storage/images", StaticFiles(directory=str(IMAGES_STORAGE_DIR)), name="storage_images")
+
+# Student Proofs Storage Directory
+STUDENT_PROOFS_DIR = APP_DIR / "backend" / "storage" / "student_proofs"
+STUDENT_PROOFS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/storage/student_proofs", StaticFiles(directory=str(STUDENT_PROOFS_DIR)), name="student_proofs")
 
 # Mount Archival Raw Images Directory if present
 IMAGES_ARCHIVE_DIR = APP_DIR.parent / "Images-archieve"
@@ -569,13 +575,20 @@ class PaymentVerifyRequest(BaseModel):
 
 @app.post("/api/payment/create-order")
 def api_create_order(request: Request):
-    """Creates a Razorpay order for Scholar Pro upgrade."""
+    """Creates a Razorpay order for Scholar Pro upgrade (₹750/mo)."""
     user = get_current_user_from_request(request)
     if not user:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+        raise HTTPException(status_code=401, detail="Unauthorized. Please sign in to upgrade.")
 
-    # Hardcoding Scholar Pro Annual price for now (can be fetched from T_SYST_SETTINGS)
-    amount_inr = 499.0
+    # Get Scholar monthly price from param_config or default to 750.0
+    conn = get_db()
+    try:
+        cfg = conn.execute("SELECT param_value FROM param_config WHERE param_key = 'scholar_monthly_inr'").fetchone()
+        amount_inr = float(cfg[0]) if cfg and cfg[0] else 750.0
+    except Exception:
+        amount_inr = 750.0
+    finally:
+        conn.close()
     
     order = create_subscription_order(amount_inr, user["sub"])
     if "error" in order:
@@ -619,19 +632,24 @@ def api_verify_payment(payload: PaymentVerifyRequest, request: Request):
             conn.execute("""
                 UPDATE user_subscriptions 
                 SET tier = 'scholar_pro', status = 'active', payment_method = 'razorpay', 
-                    last_payment_date = CURRENT_TIMESTAMP, amount_inr = 499.0 
+                    verification_status = 'approved',
+                    last_payment_date = CURRENT_TIMESTAMP, 
+                    next_billing_date = CURRENT_TIMESTAMP + INTERVAL 30 DAY,
+                    amount_inr = 750.0 
                 WHERE user_id = ?
             """, (user_id,))
         else:
             conn.execute("""
                 INSERT INTO user_subscriptions 
-                (id, user_id, tier, status, amount_inr, payment_method, last_payment_date) 
-                VALUES (?, ?, 'scholar_pro', 'active', 499.0, 'razorpay', CURRENT_TIMESTAMP)
+                (id, user_id, tier, status, amount_inr, payment_method, verification_status, last_payment_date, next_billing_date) 
+                VALUES (?, ?, 'scholar_pro', 'active', 750.0, 'razorpay', 'approved', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL 30 DAY)
             """, (sub_id, user_id))
             
-        return {"status": "success", "message": "Upgraded to Scholar Pro successfully!"}
+        return {"status": "success", "message": "Upgraded to Scholar Pro (₹750/mo) successfully! All premium iconographs and unlimited PDF downloads are now active."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
 # ----------------------------------------------------------------------------
 # 1. SCHOLAR SEARCH & DISCOVERY ENDPOINTS
@@ -671,6 +689,86 @@ def api_search(
 def api_autocomplete(q: str = Query(..., min_length=1)):
     return get_autocomplete(prefix=q, limit=8)
 
+@app.get("/api/collections")
+def api_get_collections(request: Request):
+    """
+    Public Collections Showcase endpoint themed after fivemetalmasonry.com/collections.
+    Returns all curated sacred bronze studies with metadata, plate count, tala ratio, and role access info.
+    """
+    user = get_current_user_from_request(request)
+    user_role = user.get("role") if user else "guest"
+    user_email = user.get("email") if user else None
+    
+    conn = get_db()
+    
+    # Check user subscription
+    has_active_sub = False
+    if user and user.get("sub"):
+        sub = conn.execute("""
+            SELECT COUNT(*) FROM user_subscriptions
+            WHERE user_id = ? AND status = 'active'
+              AND (next_billing_date IS NULL OR next_billing_date >= CURRENT_TIMESTAMP);
+        """, (user.get("sub"),)).fetchone()
+        if sub and sub[0] > 0:
+            has_active_sub = True
+
+    studies = conn.execute("""
+        SELECT s.id, s.slug, s.title, s.subtitle, s.study_number,
+               ser.id AS series_id, ser.name AS series_name, s.access_level,
+               s.summary_markdown, s.cover_image_url, s.total_slides,
+               s.created_at
+        FROM studies s
+        JOIN series ser ON s.series_id = ser.id
+        ORDER BY s.study_number ASC, s.id ASC;
+    """).fetchall()
+    
+    collections_list = []
+    for st in studies:
+        sid, slug, title, subtitle, study_num, ser_id, ser_name, access_level, summary, cover_img, total_slides, created_at = st
+        is_free_study = (sid == "s_ganesa_001" or slug == "ganesa-variations-in-iconography" or access_level == "public")
+        
+        can_access = is_free_study or user_role in ["admin", "curator"] or has_active_sub
+        
+        # Determine theme collection tag based on divinity/subject
+        theme_tag = "Masterpieces"
+        lower_title = f"{title} {subtitle} {ser_name}".lower()
+        if "ganesa" in lower_title or "ganapati" in lower_title:
+            theme_tag = "Ganesha Collection"
+        elif "nataraja" in lower_title or "shiva" in lower_title or "tandava" in lower_title:
+            theme_tag = "Nataraja & Shiva Icons"
+        elif "krishna" in lower_title or "radha" in lower_title or "venugopala" in lower_title:
+            theme_tag = "Krishna & Vaishnava"
+        elif "devi" in lower_title or "amman" in lower_title or "parvati" in lower_title or "durga" in lower_title:
+            theme_tag = "Devi & Amman Sacred Bronzes"
+        elif "temple" in lower_title or "chola" in lower_title or "arch" in lower_title:
+            theme_tag = "Temple Archival Classics"
+
+        collections_list.append({
+            "id": sid,
+            "slug": slug,
+            "title": title,
+            "subtitle": subtitle or "",
+            "study_number": study_num or "Study 001",
+            "series_id": ser_id,
+            "series_name": ser_name,
+            "theme_tag": theme_tag,
+            "access_level": access_level,
+            "is_public": is_free_study,
+            "can_access": can_access,
+            "summary": summary,
+            "cover_image_url": cover_img or "/assets/shilpa_shastra_iconography.jpg",
+            "total_slides": total_slides or 0
+        })
+
+    conn.close()
+    return {
+        "status": "success",
+        "total_collections": len(collections_list),
+        "user_role": user_role,
+        "has_active_sub": has_active_sub,
+        "collections": collections_list
+    }
+
 @app.get("/api/studies/{study_id}")
 def api_get_study(study_id: str, request: Request):
     from database import log_behavior
@@ -694,16 +792,16 @@ def api_get_study(study_id: str, request: Request):
 
     if not study:
         conn.close()
-        raise HTTPException(status_code=404, detail="Study not found")
+        raise HTTPException(status_code=404, detail="Iconograph study not found")
 
     sid = study[0]
     slug = study[1]
 
-    # Non-Premium Rule: Free scholars get Study 001 (s_ganesa_001).
-    # Other studies are reserved for Scholar Pro members or Admin/Curator staff.
+    # Non-Premium Rule: Free scholars get Study 001 (s_ganesa_001) or public studies.
+    # Other studies are reserved for Student / Scholar members or Admin/Curator staff.
     user_role = user.get("role") if user else "guest"
     user_email = user.get("email") if user else None
-    is_free_study = (sid == "s_ganesa_001" or slug == "ganesa-variations-in-iconography")
+    is_free_study = (sid == "s_ganesa_001" or slug == "ganesa-variations-in-iconography" or study[6] == "public")
     is_staff = user_role in ["admin", "curator"]
 
     has_premium_access = False
@@ -717,7 +815,8 @@ def api_get_study(study_id: str, request: Request):
         """, (user_email, sid)).fetchone()
         sub = conn.execute("""
             SELECT COUNT(*) FROM user_subscriptions
-            WHERE user_id = ? AND status = 'active';
+            WHERE user_id = ? AND status = 'active'
+              AND (next_billing_date IS NULL OR next_billing_date >= CURRENT_TIMESTAMP);
         """, (user.get("sub", ""),)).fetchone()
         if (paid and paid[0] > 0) or (sub and sub[0] > 0):
             has_premium_access = True
@@ -736,8 +835,8 @@ def api_get_study(study_id: str, request: Request):
             "cover_image_url": study[8],
             "total_slides": study[9],
             "is_premium_locked": True,
-            "lock_title": "Scholar Pro Monograph Access",
-            "lock_message": "The free scholar tier includes full access to Study 001 (Ganesa Variations in Iconography) along with the Dictionary and Scholar Search. To unlock full multi-slide plates, high-res details, and OCR taxonomy for this monograph, upgrade to Scholar Pro or request a study license.",
+            "lock_title": "Scholar Iconograph Access",
+            "lock_message": "The free scholar access includes full study plates and OCR for Study 001 (Ganesa Variations in Iconography) along with Dictionary and Search. To unlock full multi-slide plates, high-res details, and OCR taxonomy for this iconograph, upgrade to Student (₹350/mo) or Scholar (₹750/mo).",
             "slides": [],
             "taxonomy": []
         }
@@ -798,6 +897,140 @@ def api_get_study(study_id: str, request: Request):
         ]
     }
 
+@app.get("/api/studies/{study_id}/pdf")
+def api_download_study_pdf(study_id: str, request: Request):
+    """
+    Default Download as PDF action for iconograph studies.
+    Enforces download quotas:
+      - Public Studies: Free direct download for all visitors and scholars
+      - Member-only Studies / Free Trial: Exactly 1 download permitted across trial period
+      - Student (₹350/mo) / Scholar Pro (₹750/mo) / Admin: Unlimited downloads
+    """
+    user = get_current_user_from_request(request)
+    user_id = user.get("sub", "guest") if user else "guest"
+    user_email = user.get("email", "Visiting Scholar / Guest") if user else "Visiting Scholar / Guest"
+    conn = get_db()
+
+    # 1. Fetch study data
+    study = conn.execute("""
+        SELECT s.id, s.slug, s.title, s.subtitle, s.study_number,
+               ser.name AS series_name, s.access_level, s.summary_markdown,
+               s.cover_image_url, s.total_slides
+        FROM studies s
+        JOIN series ser ON s.series_id = ser.id
+        WHERE s.id = ? OR s.slug = ?
+    """, (study_id, study_id)).fetchone()
+
+    if not study:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Iconograph study not found")
+
+    sid, slug, title, subtitle, study_num, ser_name, access_level, summary, cover_img, total_slides = study
+
+    # 2. Check access permissions
+    is_public = (access_level == "public" or sid == "s_ganesa_001" or slug == "ganesa-variations-in-iconography")
+    if not is_public:
+        if not user:
+            conn.close()
+            raise HTTPException(
+                status_code=401,
+                detail="Authentication required. Please sign in or activate your 15-day Free Trial to download research iconograph PDFs."
+            )
+
+        user_role = user.get("role", "scholar")
+        is_staff = user_role in ["admin", "curator"]
+
+        if not is_staff:
+            sub_row = conn.execute("""
+                SELECT tier, status FROM user_subscriptions 
+                WHERE user_id = ? AND status = 'active'
+            """, (user_id,)).fetchone()
+            
+            sub_tier = sub_row[0] if sub_row else "free"
+            
+            if sub_tier in ["trial_member", "trial", "free"]:
+                dl_count = conn.execute("""
+                    SELECT COUNT(DISTINCT study_id) FROM user_downloads WHERE user_id = ?;
+                """, (user_id,)).fetchone()[0]
+                
+                if dl_count >= 1:
+                    conn.close()
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Free Trial download quota reached (1 download limit). Upgrade to Student (₹350/month) or Scholar (₹750/month) for unlimited 300 DPI PDF downloads."
+                    )
+
+    # Fetch all slides
+    slides = conn.execute("""
+        SELECT id, slide_number, slide_title, image_url, thumbnail_url,
+               caption, extracted_ocr_text, cleaned_text, visual_elements_summary
+        FROM study_slides
+        WHERE study_id = ?
+        ORDER BY slide_number ASC
+    """, (sid,)).fetchall()
+
+    # Fetch taxonomy mappings
+    mappings = conn.execute("""
+        SELECT t.canonical_name, t.iast_name, tt.name AS category,
+               m.relevance_level, m.slide_numbers
+        FROM study_taxonomy_mappings m
+        JOIN taxonomy_terms t ON m.term_id = t.id
+        JOIN taxonomy_types tt ON t.taxonomy_type_id = tt.id
+        WHERE m.study_id = ?
+    """, (sid,)).fetchall()
+
+    # Record download log
+    dl_id = f"dl_{uuid.uuid4().hex[:10]}"
+    try:
+        conn.execute("""
+            INSERT INTO user_downloads (id, user_id, study_id, license_ref, resolution, downloaded_at)
+            VALUES (?, ?, ?, 'pdf_export', '300dpi_master', CURRENT_TIMESTAMP);
+        """, (dl_id, user_id, sid))
+    except Exception:
+        pass
+    conn.close()
+
+    study_dict = {
+        "id": sid,
+        "slug": slug,
+        "title": title,
+        "subtitle": subtitle,
+        "study_number": study_num,
+        "series_name": ser_name,
+        "access_level": access_level,
+        "summary": summary,
+        "cover_image_url": cover_img,
+        "slides": [
+            {
+                "slide_number": sl[1],
+                "slide_title": sl[2],
+                "image_url": sl[3],
+                "caption": sl[5],
+                "raw_ocr": sl[6],
+                "cleaned_text": sl[7]
+            } for sl in slides
+        ],
+        "taxonomy": [
+            {
+                "term": m[0],
+                "iast": m[1],
+                "category": m[2]
+            } for m in mappings
+        ]
+    }
+
+    pdf_buffer = generate_study_pdf(study_dict, user_email=user_email)
+    safe_filename = f"{slug or 'study'}_fmm_iconograph.pdf"
+
+    return Response(
+        content=pdf_buffer.getvalue(),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_filename}"',
+            "X-Download-License": dl_id
+        }
+    )
+
 @app.get("/api/taxonomy/hierarchy")
 def api_taxonomy_hierarchy():
     conn = get_db()
@@ -821,18 +1054,169 @@ def api_taxonomy_hierarchy():
     }
 
 # ----------------------------------------------------------------------------
+# 1.1 STUDENT MEMBERSHIP VERIFICATION & ONBOARDING WORKFLOW
+# ----------------------------------------------------------------------------
+
+@app.post("/api/membership/student-apply")
+async def api_student_apply(
+    request: Request,
+    institution_name: str = Form(...),
+    proof_file: UploadFile = File(...)
+):
+    """
+    Onboarding: Student Tier application (₹350/mo).
+    Requires institutional ID / student proof upload.
+    Places subscription into 'pending_approval' for curator/admin review.
+    """
+    user = get_current_user_from_request(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required. Please sign in before applying.")
+
+    user_id = user["sub"]
+    user_email = user.get("email", "")
+
+    # Save student ID proof
+    clean_fn = f"proof_{user_id}_{uuid.uuid4().hex[:6]}_{proof_file.filename}"
+    proof_path = STUDENT_PROOFS_DIR / clean_fn
+    with open(proof_path, "wb") as buf:
+        shutil.copyfileobj(proof_file.file, buf)
+
+    rel_proof_url = f"/storage/student_proofs/{clean_fn}"
+
+    conn = get_db()
+    existing = conn.execute("SELECT id FROM user_subscriptions WHERE user_id = ?", (user_id,)).fetchone()
+    sub_id = existing[0] if existing else f"sub_std_{uuid.uuid4().hex[:8]}"
+
+    if existing:
+        conn.execute("""
+            UPDATE user_subscriptions
+            SET tier = 'student', status = 'pending_approval', verification_status = 'pending',
+                institution_name = ?, id_proof_url = ?, amount_inr = 350.0,
+                billing_cycle = 'monthly'
+            WHERE id = ?;
+        """, (institution_name, rel_proof_url, sub_id))
+    else:
+        conn.execute("""
+            INSERT INTO user_subscriptions (
+                id, user_id, tier, status, verification_status, institution_name,
+                id_proof_url, amount_inr, billing_cycle, payment_method
+            ) VALUES (?, ?, 'student', 'pending_approval', 'pending', ?, ?, 350.0, 'monthly', 'student_proof');
+        """, (sub_id, user_id, institution_name, rel_proof_url))
+
+    conn.close()
+
+    return {
+        "status": "success",
+        "message": "Student ID submitted successfully! Your ₹350/mo Student tier application is currently under Curator review.",
+        "subscription_id": sub_id,
+        "tier": "student",
+        "verification_status": "pending"
+    }
+
+@app.get("/api/admin/student-applications")
+def api_get_student_applications(request: Request):
+    """
+    Admin & Curator review queue for submitted student IDs.
+    """
+    user = get_current_user_from_request(request)
+    if not user or user.get("role") not in ["admin", "curator"]:
+        raise HTTPException(status_code=403, detail="Forbidden: Reserved for Administrators and Curators.")
+
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT s.id, s.user_id, u.full_name, u.email, s.institution_name,
+               s.id_proof_url, s.verification_status, s.status, s.amount_inr,
+               s.created_at, s.verified_by, s.verified_at
+        FROM user_subscriptions s
+        LEFT JOIN users u ON s.user_id = u.id
+        WHERE s.tier = 'student'
+        ORDER BY s.created_at DESC;
+    """).fetchall()
+    conn.close()
+
+    apps = []
+    for r in rows:
+        apps.append({
+            "id": r[0],
+            "user_id": r[1],
+            "full_name": r[2] or "Scholar Applicant",
+            "email": r[3] or "N/A",
+            "institution_name": r[4] or "Academic Institution",
+            "id_proof_url": r[5],
+            "verification_status": r[6] or "pending",
+            "status": r[7],
+            "amount_inr": r[8] or 350.0,
+            "created_at": str(r[9]),
+            "verified_by": r[10],
+            "verified_at": str(r[11]) if r[11] else None
+        })
+
+    return {"status": "success", "count": len(apps), "applications": apps}
+
+class StudentReviewPayload(BaseModel):
+    action: str  # 'approve' or 'reject'
+    notes: Optional[str] = None
+
+@app.post("/api/admin/student-applications/{sub_id}/review")
+def api_review_student_application(sub_id: str, payload: StudentReviewPayload, request: Request):
+    """
+    Admin & Curator endpoint to approve or reject student ID application.
+    """
+    user = get_current_user_from_request(request)
+    if not user or user.get("role") not in ["admin", "curator"]:
+        raise HTTPException(status_code=403, detail="Forbidden: Reserved for Administrators and Curators.")
+
+    action = payload.action.strip().lower()
+    if action not in ["approve", "reject"]:
+        raise HTTPException(status_code=400, detail="Action must be 'approve' or 'reject'")
+
+    conn = get_db()
+    sub = conn.execute("SELECT id, user_id FROM user_subscriptions WHERE id = ?", (sub_id,)).fetchone()
+    if not sub:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Subscription application not found")
+
+    reviewer_email = user.get("email", "admin@fivemetalmasonry.com")
+
+    if action == "approve":
+        conn.execute("""
+            UPDATE user_subscriptions
+            SET verification_status = 'approved',
+                status = 'active',
+                verified_by = ?,
+                verified_at = CURRENT_TIMESTAMP,
+                next_billing_date = CURRENT_TIMESTAMP + INTERVAL 30 DAY
+            WHERE id = ?;
+        """, (reviewer_email, sub_id))
+        msg = "Student application approved. Student tier activated at ₹350/mo."
+    else:
+        conn.execute("""
+            UPDATE user_subscriptions
+            SET verification_status = 'rejected',
+                status = 'rejected',
+                verified_by = ?,
+                verified_at = CURRENT_TIMESTAMP
+            WHERE id = ?;
+        """, (reviewer_email, sub_id))
+        msg = "Student application rejected."
+
+    conn.close()
+    return {"status": "success", "message": msg, "action": action, "sub_id": sub_id}
+
+# ----------------------------------------------------------------------------
 # 2. OCR INGESTION & VISUAL APPROVAL STUDIO (ROUTE GUARDED)
 # ----------------------------------------------------------------------------
 
 @app.post("/api/ocr/upload")
 async def api_ocr_upload(
     request: Request,
-    file: UploadFile = File(...),
+    file: Optional[UploadFile] = File(None),
+    files: Optional[List[UploadFile]] = File(None),
     study_slug: str = Form("ganesa-variations-in-iconography"),
     engine: str = Form("gemini_vision")
 ):
     """
-    Guarded route: Dual-engine OCR (Gemini Vision Model Default vs Windows Native OCR).
+    Guarded route: Multi-file / single-file OCR ingestion for series.
     Requires authenticated Curator or Admin session.
     """
     user = get_current_user_from_request(request)
@@ -850,44 +1234,70 @@ async def api_ocr_upload(
     target_dir = IMAGES_STORAGE_DIR / study_slug
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    safe_filename = f"upload_{uuid.uuid4().hex[:6]}_{file.filename}"
-    file_path = target_dir / safe_filename
+    # Collect all uploaded files
+    upload_list = []
+    if files:
+        upload_list.extend(files)
+    if file and file not in upload_list:
+        upload_list.append(file)
 
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    if not upload_list:
+        raise HTTPException(status_code=400, detail="No image file(s) provided for OCR ingestion.")
 
-    # 1. Gemini Iconography / Shilpa Shastra Domain Validation Guard
-    is_valid, validation_reason = validate_iconography_image(str(file_path))
-    if not is_valid:
-        if file_path.exists():
-            try:
-                file_path.unlink()
-            except Exception:
-                pass
-        raise HTTPException(
-            status_code=400,
-            detail=f"Upload rejected: Image is not related to Shilpa Shastra or sacred iconography. {validation_reason}"
-        )
+    results = []
+    for f in upload_list:
+        safe_filename = f"upload_{uuid.uuid4().hex[:6]}_{f.filename}"
+        file_path = target_dir / safe_filename
 
-    # 2. Dispatch Dual-Engine OCR (Gemini Vision Default / Windows Native)
-    raw_ocr, cleaned_ocr, engine_used = perform_ocr(str(file_path), engine=engine)
-    if not raw_ocr:
-        raw_ocr = "ICONOGRAPHY SAMPLE EXTRACTED TEXT"
-        cleaned_ocr = clean_ocr_text(raw_ocr)
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(f.file, buffer)
 
-    # 3. Layer 2 Entity Extraction
-    proposals = extract_candidate_proposals(cleaned_ocr)
+        # 1. Gemini Iconography / Shilpa Shastra Domain Validation Guard
+        is_valid, validation_reason = validate_iconography_image(str(file_path))
+        if not is_valid:
+            if file_path.exists():
+                try:
+                    file_path.unlink()
+                except Exception:
+                    pass
+            raise HTTPException(
+                status_code=400,
+                detail=f"Upload rejected for '{f.filename}': Image is not related to Shilpa Shastra or sacred iconography. {validation_reason}"
+            )
 
-    rel_url = f"/storage/images/{study_slug}/{safe_filename}"
+        # 2. Dispatch Dual-Engine OCR (Gemini Vision Default / Windows Native)
+        raw_ocr, cleaned_ocr, engine_used = perform_ocr(str(file_path), engine=engine)
+        if not raw_ocr:
+            raw_ocr = "ICONOGRAPHY SAMPLE EXTRACTED TEXT"
+            cleaned_ocr = clean_ocr_text(raw_ocr)
 
+        # 3. Layer 2 Entity Extraction
+        proposals = extract_candidate_proposals(cleaned_ocr)
+        rel_url = f"/storage/images/{study_slug}/{safe_filename}"
+
+        results.append({
+            "filename": safe_filename,
+            "original_filename": f.filename,
+            "image_url": rel_url,
+            "engine_used": engine_used,
+            "raw_ocr": raw_ocr,
+            "cleaned_ocr": cleaned_ocr,
+            "word_count": len(cleaned_ocr.split()),
+            "proposals": proposals
+        })
+
+    # Backward compatible return: single slide fields at root + uploaded_slides array
+    first_res = results[0]
     return {
-        "filename": safe_filename,
-        "image_url": rel_url,
-        "engine_used": engine_used,
-        "raw_ocr": raw_ocr,
-        "cleaned_ocr": cleaned_ocr,
-        "word_count": len(cleaned_ocr.split()),
-        "proposals": proposals
+        "filename": first_res["filename"],
+        "image_url": first_res["image_url"],
+        "engine_used": first_res["engine_used"],
+        "raw_ocr": first_res["raw_ocr"],
+        "cleaned_ocr": first_res["cleaned_ocr"],
+        "word_count": first_res["word_count"],
+        "proposals": first_res["proposals"],
+        "uploaded_slides": results,
+        "total_uploaded": len(results)
     }
 
 @app.get("/api/ocr/context")
@@ -901,12 +1311,13 @@ class CreateStudyRequest(BaseModel):
     title: str
     subtitle: Optional[str] = None
     series_id: int = 1
-    access_level: Optional[str] = "public"
+    access_level: Optional[str] = "member_only"
 
 @app.post("/api/ocr/studies/create")
 def api_ocr_create_study(req: CreateStudyRequest, request: Request):
     """
-    Guarded route: Creates a new study monograph linked to a valid series_id.
+    Guarded route: Creates a new study iconograph linked to a valid series_id.
+    Default access level is member_only.
     """
     user = get_current_user_from_request(request)
     if not user or user.get("role") not in ["curator", "admin"]:
