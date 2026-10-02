@@ -133,6 +133,10 @@ def scholar_search(
     # Dense vector only for iconographic queries of 4+ characters
     q_vec = text_to_dense_vector(q_clean) if (q_clean and len(q_clean) >= 4 and q_clean not in STOP_WORDS) else None
 
+    # Significant query tokens for per-word (OR) corpus matching on multi-word queries
+    q_tokens = [w for w in q_clean.split() if len(w) >= 3 and w not in STOP_WORDS] if q_clean else []
+    is_multiword = len(q_tokens) >= 2
+
     # Conceptual Intent Expansion for high-level scholarly categories
     CONCEPT_MAP = {
         "mudra": ["mudra", "hasta", "gesture", "shikhara", "abhaya", "varada", "gajahasta", "chin", "dhyana"],
@@ -321,10 +325,15 @@ def scholar_search(
         slide_hits = []
         slides_list = []
         best_hit_snippet = None
+        best_hit_kind = None
+        best_text_snippet = None
+        best_text_plate = None
+        best_vector_plate = None
 
         for sl in slides_data:
             sl_id, sl_num, sl_title, sl_img, sl_caption, sl_text, sl_emb = sl
             has_hit = False
+            hit_kind = None
             hit_detail = ""
             matched_cue_term = q_clean
 
@@ -336,6 +345,7 @@ def scholar_search(
                 # A. Direct Phrase Match in Embedded Corpus (e.g. "32 forms")
                 if q_clean in text_lower or (len(q_clean) >= 3 and q_clean in title_lower):
                     has_hit = True
+                    hit_kind = "text"
                     hit_detail = f"Direct match in text corpus: '{q_clean}'"
                     affinity_pts = max(affinity_pts, 0.88)
                     confidence_pts = max(confidence_pts, 0.98)
@@ -348,15 +358,29 @@ def scholar_search(
                             continue
                         if matches_term(eq, text_lower):
                             has_hit = True
+                            hit_kind = "text"
                             hit_detail = f"Corpus textual hit matching scholarly concept '{eq}'"
                             affinity_pts = max(affinity_pts, 0.80)
                             confidence_pts = max(confidence_pts, 0.95)
                             matched_cue_term = eq
                             break
 
+                # B2. Token-level OR match: any significant query word present (multi-word queries)
+                if not has_hit and is_multiword:
+                    present_tokens = [w for w in q_tokens if matches_term(w, text_lower)]
+                    if present_tokens:
+                        frac = len(present_tokens) / len(q_tokens)
+                        has_hit = True
+                        hit_kind = "text"
+                        hit_detail = f"Partial corpus match: {len(present_tokens)}/{len(q_tokens)} query words present {present_tokens}"
+                        affinity_pts = max(affinity_pts, min(0.82, 0.5 + 0.3 * frac))
+                        confidence_pts = max(confidence_pts, 0.80 + 0.1 * frac)
+                        matched_cue_term = present_tokens[0]
+
                 # C. Indic Phonetic Transliteration Match
                 if not has_hit and q_norm and len(q_norm) >= 3 and matches_term(q_norm, text_norm):
                     has_hit = True
+                    hit_kind = "text"
                     hit_detail = f"Phonetic transliteration hit: '{query}' -> '{q_norm}'"
                     affinity_pts = max(affinity_pts, 0.75)
                     confidence_pts = max(confidence_pts, 0.92)
@@ -368,6 +392,7 @@ def scholar_search(
                     sim = cosine_similarity(q_vec, s_vec)
                     if sim >= 0.52:
                         has_hit = True
+                        hit_kind = "vector"
                         hit_detail = f"Dense Vector Semantic Affinity ({round(sim * 100, 1)}%)"
                         affinity_pts = max(affinity_pts, float(sim))
                         confidence_pts = max(confidence_pts, 0.90)
@@ -376,6 +401,7 @@ def scholar_search(
                 # E. Taxonomy Mappings for this slide
                 if not has_hit and sl_num in mapped_slide_numbers:
                     has_hit = True
+                    hit_kind = "taxonomy"
                     hit_detail = "Direct taxonomy element illustrated in slide"
                     affinity_pts = max(affinity_pts, 0.70)
                     confidence_pts = max(confidence_pts, 0.92)
@@ -385,8 +411,14 @@ def scholar_search(
 
             if has_hit:
                 slide_hits.append(sl_num)
-                if not best_hit_snippet:
+                if best_hit_kind is None:
                     best_hit_snippet = sl_snippet
+                    best_hit_kind = hit_kind
+                if hit_kind == "text" and best_text_snippet is None:
+                    best_text_snippet = sl_snippet
+                    best_text_plate = sl_num
+                elif hit_kind == "vector" and best_vector_plate is None:
+                    best_vector_plate = sl_num
 
             slides_list.append({
                 "slide_id": sl_id,
@@ -396,6 +428,7 @@ def scholar_search(
                 "caption": sl_caption,
                 "cleaned_text": sl_text,
                 "has_term_hit": has_hit,
+                "hit_kind": hit_kind,
                 "hit_detail": hit_detail,
                 "snippet": sl_snippet,
                 "matched_snippet": sl_snippet if has_hit else None
@@ -403,8 +436,10 @@ def scholar_search(
 
         if slide_hits:
             text_pts = max(text_pts, min(0.98, 0.5 + 0.25 * len(slide_hits)))
-            if best_hit_snippet:
-                match_cues.insert(0, f'Embedded Text Corpus Hit (Plate {slide_hits[0]}): "{best_hit_snippet}"')
+            if best_text_snippet:
+                match_cues.insert(0, f'Embedded Text Corpus Hit (Plate {best_text_plate}): "{best_text_snippet}"')
+            elif best_vector_plate is not None:
+                match_cues.insert(0, f"Semantic Vector Match (Plate {best_vector_plate}): closest embedded plate by meaning (no literal phrase in OCR)")
             else:
                 match_cues.append(f"Deep Slide OCR Hit: Identified in Slide(s) {slide_hits}")
             if confidence_pts == 0:
@@ -475,7 +510,7 @@ def scholar_search(
             "rank_score": final_rank_score,
             "match_cues": match_cues,
             "requires_subscription": needs_sub,
-            "matched_corpus_snippet": best_hit_snippet if slide_hits else None,
+            "matched_corpus_snippet": best_text_snippet if (slide_hits and best_text_snippet) else None,
             "matched_slide_number": slide_hits[0] if slide_hits else 1,
             "slides": slides_list
         })
