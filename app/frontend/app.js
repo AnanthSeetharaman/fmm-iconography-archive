@@ -1956,6 +1956,7 @@ function showOcrPlate(i) {
 
   renderProposals(plate.proposals);
   updatePrecommitImpact(plate.proposals);
+  updateOcrInferredStudy(i);
 
   document.querySelectorAll("#ocrBatchThumbnails .ocr-batch-thumb").forEach((el, idx) => {
     el.style.outline = idx === i ? "2px solid var(--accent)" : "1px solid var(--line)";
@@ -1967,6 +1968,37 @@ function showOcrPlate(i) {
   if (nextBtn) { nextBtn.style.display = multi ? "inline-flex" : "none"; nextBtn.disabled = i === plates.length - 1; }
 }
 window.showOcrPlate = showOcrPlate;
+
+// Surface the inferred study for the plate currently under inspection, so the
+// curator sees the study name (from the plate header) in BOTH single- and
+// multi-plate uploads — not only inside the grouping panel.
+function updateOcrInferredStudy(i) {
+  const el = document.getElementById("ocrInferredStudyDisplay");
+  if (!el) return;
+  const groups = state.ocrGroups || [];
+  if (!groups.length) {
+    el.innerHTML = `<span style="color:var(--muted);">inferring from plate header&hellip;</span>`;
+    return;
+  }
+  const g = groups.find(x => (x.plate_indices || []).includes(i));
+  if (!g) {
+    el.innerHTML = `<span style="color:var(--muted);">unassigned &mdash; drag into a study in the grouping panel</span>`;
+    return;
+  }
+  const title = escapeHtml(g.study_title || "Untitled Study");
+  const num = g.study_number ? ` <span style="color:var(--muted); font-weight:400;">&middot; ${escapeHtml(g.study_number)}</span>` : "";
+  const kind = g.study_id
+    ? `<span class="badge" style="background:rgba(16,185,129,0.14); color:var(--success); font-size:10px; margin-left:6px;">attaches to existing</span>`
+    : (g.is_front_matter
+        ? `<span class="badge" style="background:rgba(107,114,128,0.16); color:var(--muted); font-size:10px; margin-left:6px;">front matter</span>`
+        : `<span class="badge" style="background:rgba(181,139,75,0.14); color:var(--accent); font-size:10px; margin-left:6px;">new study</span>`);
+  const pub = (state.ocrPlates[i] && state.ocrPlates[i].is_public)
+    ? ` <span style="color:var(--accent); font-weight:600;">&middot; public</span>` : "";
+  const eng = state.ocrInferEngine && state.ocrInferEngine !== "unavailable"
+    ? ` <span style="color:var(--muted); font-weight:400; font-size:11px;">(${escapeHtml(state.ocrInferEngine)})</span>` : "";
+  el.innerHTML = `${title}${num}${kind}${pub}${eng}`;
+}
+window.updateOcrInferredStudy = updateOcrInferredStudy;
 
 // ---------------------------------------------------------------------------
 // Study grouping (multi-study bulk split + per-plate public selection)
@@ -2039,8 +2071,8 @@ async function inferStudyGroups() {
 function ocrFindGroupOfPlate(idx) {
   return (state.ocrGroups || []).find(g => g.plate_indices.includes(idx));
 }
-function ocrRenameGroup(gid, val) { const g = (state.ocrGroups || []).find(x => x.gid === gid); if (g) g.study_title = val; }
-function ocrSetGroupNumber(gid, val) { const g = (state.ocrGroups || []).find(x => x.gid === gid); if (g) g.study_number = val; }
+function ocrRenameGroup(gid, val) { const g = (state.ocrGroups || []).find(x => x.gid === gid); if (g) { g.study_title = val; updateOcrInferredStudy(state.ocrPlateIndex || 0); } }
+function ocrSetGroupNumber(gid, val) { const g = (state.ocrGroups || []).find(x => x.gid === gid); if (g) { g.study_number = val; updateOcrInferredStudy(state.ocrPlateIndex || 0); } }
 function ocrSetGroupAccess(gid, val) { const g = (state.ocrGroups || []).find(x => x.gid === gid); if (g) g.access_level = val; }
 function ocrTogglePlatePublic(idx, checked) { if (state.ocrPlates[idx]) state.ocrPlates[idx].is_public = !!checked; }
 
@@ -2142,6 +2174,10 @@ function renderOcrGroups() {
     </div>
     ${groupsHtml}
     <div style="font-size:11px; color:var(--muted); margin-top:4px;">Tip: click a plate to review its OCR. Tick "Public" to expose it to guests (first few are pre-selected). Explicit public picks override the global preview setting.</div>`;
+
+  // Keep the inspection panel's "Inferred Study" line in sync with any
+  // regrouping (move/merge/public-toggle all route through here).
+  updateOcrInferredStudy(state.ocrPlateIndex || 0);
 }
 window.inferStudyGroups = inferStudyGroups;
 window.renderOcrGroups = renderOcrGroups;
