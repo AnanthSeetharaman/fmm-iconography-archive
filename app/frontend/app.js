@@ -1777,55 +1777,106 @@ async function handleFileUpload(fileOrFiles) {
     </div>
   `;
 
-  // Upload plates sequentially so we can show live "Processing k of N" progress
-  // and so one invalid image does not fail the whole batch.
+  // Upload plates with bounded concurrency + a Cancel control. Results are indexed
+  // by file position so plate order (and slide numbers / grouping) stays in file order.
   state.ocrPlates = [];
   state.ocrPlateIndex = 0;
-  const skipped = [];
   const studySlug = state.selectedStudySlug || "ganesa-variations-in-iconography";
 
-  for (let k = 0; k < files.length; k++) {
+  const results = new Array(files.length).fill(null);
+  const controllers = [];
+  let completed = 0;
+  let nextIndex = 0;
+  let cancelled = false;
+  const CONCURRENCY = Math.min(4, files.length);
+
+  const renderProgress = () => {
     uploadPrompt.innerHTML = `
-      <div style="display:flex; align-items:center; justify-content:center; gap:10px; color:var(--accent); font-weight:700; padding:10px;">
-        <img src="assets/icons/dharma-chakra.svg" class="fmm-icon rotating-chakra" style="width:20px; height:20px;" alt="" />
-        <span>Processing plate ${k + 1} of ${files.length} &middot; ${engineLabel} &amp; Sanskrit IAST...</span>
-      </div>
-    `;
-    const fd = new FormData();
-    fd.append("file", files[k]);
-    fd.append("files", files[k]);
-    fd.append("study_slug", studySlug);
-    fd.append("engine", engine);
-    try {
-      const res = await fetch(`${API_BASE}/api/ocr/upload`, { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Image rejected by server.");
-      const p = (data.uploaded_slides && data.uploaded_slides[0]) ? data.uploaded_slides[0] : data;
-      const cleaned = p.cleaned_ocr || "";
-      state.ocrPlates.push({
-        image_url: p.image_url,
-        raw_ocr: p.raw_ocr || cleaned || "",
-        cleaned_ocr: cleaned,
-        word_count: p.word_count || (cleaned ? cleaned.split(/\s+/).length : 0),
-        engine_used: p.engine_used || data.engine_used,
-        slide_title: (files[k].name || `Plate ${k + 1}`).replace(/\.[^.]+$/, ""),
-        proposals: (p.proposals || data.proposals || []).map(pr => ({ ...pr, approved: pr.approved !== false }))
-      });
-    } catch (err) {
-      console.error(`OCR upload failed for ${files[k].name}:`, err);
-      skipped.push({ name: files[k].name, reason: err.message });
+      <div style="display:flex; flex-direction:column; align-items:center; gap:10px; padding:10px;">
+        <div style="display:flex; align-items:center; justify-content:center; gap:10px; color:var(--accent); font-weight:700;">
+          <img src="assets/icons/dharma-chakra.svg" class="fmm-icon rotating-chakra" style="width:20px; height:20px;" alt="" />
+          <span>Processing ${completed} of ${files.length} &middot; ${engineLabel}&hellip;</span>
+        </div>
+        <button type="button" id="ocrCancelUploadBtn" style="font-size:12px; padding:6px 16px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--paper-card); color:var(--ink); cursor:pointer;">Cancel</button>
+      </div>`;
+    const cb = document.getElementById("ocrCancelUploadBtn");
+    if (cb) cb.onclick = () => {
+      cancelled = true;
+      controllers.forEach(c => { try { c.abort(); } catch (e) {} });
+      cb.disabled = true;
+      cb.innerText = "Cancelling\u2026";
+    };
+  };
+
+  const worker = async () => {
+    while (true) {
+      if (cancelled) return;
+      const k = nextIndex++;
+      if (k >= files.length) return;
+      const controller = new AbortController();
+      controllers.push(controller);
+      const fd = new FormData();
+      fd.append("file", files[k]);
+      fd.append("files", files[k]);
+      fd.append("study_slug", studySlug);
+      fd.append("engine", engine);
+      try {
+        const res = await fetch(`${API_BASE}/api/ocr/upload`, { method: "POST", body: fd, signal: controller.signal });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Image rejected by server.");
+        const p = (data.uploaded_slides && data.uploaded_slides[0]) ? data.uploaded_slides[0] : data;
+        const cleaned = p.cleaned_ocr || "";
+        results[k] = { ok: true, plate: {
+          image_url: p.image_url,
+          raw_ocr: p.raw_ocr || cleaned || "",
+          cleaned_ocr: cleaned,
+          word_count: p.word_count || (cleaned ? cleaned.split(/\s+/).length : 0),
+          engine_used: p.engine_used || data.engine_used,
+          slide_title: (files[k].name || `Plate ${k + 1}`).replace(/\.[^.]+$/, ""),
+          proposals: (p.proposals || data.proposals || []).map(pr => ({ ...pr, approved: pr.approved !== false }))
+        } };
+      } catch (err) {
+        if (cancelled || (err && err.name === "AbortError")) {
+          results[k] = { ok: false, aborted: true };
+        } else {
+          console.error(`OCR upload failed for ${files[k].name}:`, err);
+          results[k] = { ok: false, skip: { name: files[k].name, reason: err.message } };
+        }
+      } finally {
+        completed++;
+        if (!cancelled) renderProgress();
+      }
     }
-  }
+  };
+
+  renderProgress();
+  await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+
+  const skipped = [];
+  results.forEach(r => {
+    if (!r) return;
+    if (r.ok) state.ocrPlates.push(r.plate);
+    else if (r.skip) skipped.push(r.skip);
+  });
 
   if (state.ocrPlates.length === 0) {
     stage.style.display = "none";
-    uploadPrompt.innerHTML = `
-      <div style="color:var(--danger); padding:12px 16px; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); border-radius:var(--radius-md); font-size:13px; line-height:1.5; margin-top:8px;">
-        <strong>&#9888; No plates ingested.</strong><br/>
-        <span>${skipped.map(s => `${s.name}: ${s.reason}`).join('<br/>')}</span>
-      </div>
-    `;
-    if (typeof showToast === "function") showToast("No plates ingested. Check the images are sacred iconography.");
+    if (cancelled) {
+      uploadPrompt.innerHTML = `
+        <div style="color:var(--ink-soft); padding:12px 16px; background:var(--paper-sunken); border:1px solid var(--line); border-radius:var(--radius-md); font-size:13px; line-height:1.5; margin-top:8px;">
+          <strong>Upload cancelled.</strong> No plates were ingested. Drop images again to retry.
+        </div>
+      `;
+      if (typeof showToast === "function") showToast("Upload cancelled.");
+    } else {
+      uploadPrompt.innerHTML = `
+        <div style="color:var(--danger); padding:12px 16px; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); border-radius:var(--radius-md); font-size:13px; line-height:1.5; margin-top:8px;">
+          <strong>&#9888; No plates ingested.</strong><br/>
+          <span>${skipped.map(s => `${s.name}: ${s.reason}`).join('<br/>')}</span>
+        </div>
+      `;
+      if (typeof showToast === "function") showToast("No plates ingested. Check the images are sacred iconography.");
+    }
     updateOcrPipelineStep(1);
     return;
   }
@@ -2517,6 +2568,19 @@ function hideIngestOverlay() {
   if (ex) ex.remove();
 }
 
+function setApproveStatus(kind, html) {
+  const el = document.getElementById("approveStatus");
+  if (!el) return;
+  if (!kind) { el.style.display = "none"; el.innerHTML = ""; return; }
+  const styles = {
+    working: "background:rgba(181,139,75,0.12); border:1px solid var(--line); color:var(--ink);",
+    success: "background:#f0fdf4; border:1px solid #bbf7d0; color:#166534;",
+    error: "background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.35); color:var(--danger);"
+  };
+  el.setAttribute("style", `display:block; margin-top:10px; font-size:13px; line-height:1.55; padding:10px 14px; border-radius:var(--radius-md); ${styles[kind] || styles.working}`);
+  el.innerHTML = html;
+}
+
 async function handleCuratorApproval() {
   const plates = (state.ocrPlates && state.ocrPlates.length) ? state.ocrPlates : (state.ocrResult ? [state.ocrResult] : []);
   if (!plates.length) return;
@@ -2577,15 +2641,19 @@ async function handleCuratorApproval() {
   });
 
   const approveBtn = document.getElementById("approveIngestBtn");
+  const prevBtnHtml = approveBtn ? approveBtn.innerHTML : "";
   if (approveBtn) {
     approveBtn.disabled = true;
-    approveBtn.style.opacity = "0.55";
+    approveBtn.style.opacity = "0.7";
     approveBtn.style.pointerEvents = "none";
+    approveBtn.innerHTML = `<img src="assets/icons/dharma-chakra.svg" class="fmm-icon spin-fast" style="width:16px;height:16px;vertical-align:middle;" alt="" /> Committing\u2026`;
   }
   const plateCount = slides.length;
+  const studyCount = new Set(slides.map(s => s.study_id)).size;
+  setApproveStatus("working", `<img src="assets/icons/dharma-chakra.svg" class="fmm-icon spin-fast" style="width:14px;height:14px;vertical-align:middle;" alt="" /> Ingesting ${plateCount} plate(s) across ${studyCount} study/studies\u2026`);
   showIngestOverlay(
-    `Ingesting ${plateCount} plate${plateCount > 1 ? "s" : ""} into the Knowledge Graph…`,
-    "Committing curated proposals across DuckDB · taxonomy · audit trail. Please hold."
+    `Ingesting ${plateCount} plate${plateCount > 1 ? "s" : ""} into the Knowledge Graph\u2026`,
+    `Committing ${studyCount} study/studies across DuckDB \u00b7 taxonomy \u00b7 audit trail. Please hold.`
   );
 
   try {
@@ -2623,9 +2691,15 @@ async function handleCuratorApproval() {
     }
 
     openTablesImpactedModal(auditResponse);
+    const ingested = auditResponse.total_slides_ingested || plateCount;
+    const studiesN = auditResponse.total_studies || studyCount;
+    window.__lastAudit = auditResponse;
+    setApproveStatus("success", `<strong>\u2713 Ingested ${ingested} plate(s) into ${studiesN} study/studies.</strong> Public plates are now live for guests. <a href="#" onclick="try{openTablesImpactedModal(window.__lastAudit)}catch(e){} return false;" style="color:inherit; text-decoration:underline;">View tables impacted</a>`);
+    if (typeof showToast === "function") showToast(`Ingested ${ingested} plate(s) into ${studiesN} study/studies.`);
   } catch (err) {
     console.error("Approval commit failed:", err);
-    alert("Approval commit failed: " + err.message);
+    setApproveStatus("error", `<strong>Approval failed.</strong> ${(err && err.message) ? String(err.message).slice(0, 300) : "Unknown error"} \u2014 adjust and press Approve again.`);
+    if (typeof showToast === "function") showToast("Approval failed \u2014 see the message above the button.");
     updateOcrPipelineStep(4);
   } finally {
     hideIngestOverlay();
@@ -2633,6 +2707,7 @@ async function handleCuratorApproval() {
       approveBtn.disabled = false;
       approveBtn.style.opacity = "";
       approveBtn.style.pointerEvents = "";
+      if (prevBtnHtml) approveBtn.innerHTML = prevBtnHtml;
     }
   }
 }
