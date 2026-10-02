@@ -7,14 +7,14 @@ import shutil
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
-from fastapi import FastAPI, UploadFile, File, Form, Query, HTTPException, Request
+from fastapi import FastAPI, UploadFile, File, Form, Query, HTTPException, Request, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, RedirectResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
 from config import IMAGES_STORAGE_DIR, FRONTEND_DIR, HOST, PORT, GOOGLE_CLIENT_ID, SESSION_COOKIE_NAME, APP_DIR, LLM_MODEL
-from database import init_duckdb_schema, get_db
+from database import init_duckdb_schema, get_db, get_param
 from search_service import scholar_search, get_autocomplete
 from ocr_service import (
     perform_ocr,
@@ -34,7 +34,7 @@ from auth_service import (
     get_current_user_from_request
 )
 from razorpay_service import create_subscription_order, verify_payment_signature
-from pdf_service import generate_study_pdf
+from pdf_service import generate_study_pdf, generate_image_only_pdf
 
 # Initialize FastAPI App
 app = FastAPI(
@@ -102,7 +102,10 @@ def check_active_subscription(user_id):
         return False
 
 def ensure_trial_subscription(user_id: str, email: str = "") -> dict:
-    """Provisions a 15-day trial membership for users signing in via Google SSO or trial flow."""
+    """Provisions a free-trial membership for users signing in via Google SSO or trial flow.
+
+    Trial length is driven by the `trial_duration_days` param_config value (default 30).
+    """
     conn = get_db()
     try:
         existing = conn.execute(
@@ -116,11 +119,19 @@ def ensure_trial_subscription(user_id: str, email: str = "") -> dict:
                 "status": existing[2],
                 "expires_at": str(existing[3]) if existing[3] else None
             }
-        
+
+        # Configurable trial duration (validated int -> safe to inline in INTERVAL)
+        try:
+            trial_days = int(float(get_param(conn, "trial_duration_days", "30") or 30))
+        except Exception:
+            trial_days = 30
+        if trial_days <= 0:
+            trial_days = 30
+
         sub_id = f"sub_trial_{uuid.uuid4().hex[:8]}"
-        conn.execute("""
+        conn.execute(f"""
             INSERT INTO user_subscriptions (id, user_id, tier, status, billing_cycle, amount_inr, payment_due_amount, next_billing_date, payment_method)
-            VALUES (?, ?, 'trial_member', 'active', 'trial_15d', 0.0, 0.0, CURRENT_TIMESTAMP + INTERVAL 15 DAY, 'google_sso');
+            VALUES (?, ?, 'trial_member', 'active', 'trial', 0.0, 0.0, CURRENT_TIMESTAMP + INTERVAL {trial_days} DAY, 'google_sso');
         """, (sub_id, str(user_id)))
         conn.commit()
         return {
@@ -540,8 +551,36 @@ def api_auth_me(request: Request):
 
     is_admin = user_role == "admin"
     is_curator = user_role == "curator"
-    tier = "admin" if is_admin else ("curator" if is_curator else ("trial_member" if has_sub else "free"))
-    tier_name = "Super Administrator" if is_admin else ("Admin Curator" if is_curator else ("Scholar Pro (Trial Member)" if has_sub else "Visiting Scholar (Free)"))
+
+    # Read the real subscription snapshot so the UI can reflect the actual tier,
+    # payment status, and (for students) verification state.
+    sub_tier = sub_status = verification_status = None
+    if not (is_admin or is_curator):
+        try:
+            conn = get_db()
+            row = conn.execute(
+                "SELECT tier, status, verification_status FROM user_subscriptions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1",
+                (user_id,)
+            ).fetchone()
+            conn.close()
+            if row:
+                sub_tier, sub_status, verification_status = row[0], row[1], row[2]
+        except Exception:
+            pass
+
+    if is_admin:
+        tier, tier_name = "admin", "Super Administrator"
+    elif is_curator:
+        tier, tier_name = "curator", "Admin Curator"
+    elif sub_status == "active" and sub_tier in ("student", "scholar_pro", "scholar"):
+        tier = sub_tier
+        tier_name = "Student Scholar (\u20b9350/mo)" if sub_tier == "student" else "Scholar (\u20b9750/mo)"
+    elif has_sub:
+        tier, tier_name = "trial_member", "Scholar Pro (Trial Member)"
+    else:
+        # Not yet active: could be a free visitor or a student pending/approved-unpaid
+        tier = sub_tier if sub_tier else "free"
+        tier_name = "Visiting Scholar (Free)"
 
     return {
         "authenticated": True,
@@ -553,6 +592,8 @@ def api_auth_me(request: Request):
             "role": user_role,
             "has_active_sub": has_sub,
             "subscription_tier": tier,
+            "subscription_status": sub_status,
+            "verification_status": verification_status,
             "tier_name": tier_name
         }
     }
@@ -572,39 +613,75 @@ class PaymentVerifyRequest(BaseModel):
     razorpay_payment_id: str
     razorpay_order_id: str
     razorpay_signature: str
+    tier: Optional[str] = "scholar"
+
+class CreateOrderPayload(BaseModel):
+    tier: str = "scholar"
+
+def _resolve_paid_tier(tier: Optional[str]):
+    """Maps a requested tier label to (tier_key, price_config_key, default_price_inr).
+
+    The internal Scholar identifier remains `scholar_pro` for compatibility with
+    existing rows and `check_active_subscription`.
+    """
+    t = (tier or "scholar").strip().lower()
+    if t == "student":
+        return "student", "student_monthly_inr", 350.0
+    return "scholar_pro", "scholar_monthly_inr", 750.0
 
 @app.post("/api/payment/create-order")
-def api_create_order(request: Request):
-    """Creates a Razorpay order for Scholar Pro upgrade (₹750/mo)."""
+def api_create_order(request: Request, payload: Optional[CreateOrderPayload] = Body(default=None)):
+    """Creates a Razorpay order for a Student (requires approval) or Scholar upgrade.
+
+    Price is read from param_config (`student_monthly_inr` / `scholar_monthly_inr`).
+    Student orders are rejected unless the applicant's ID proof is already approved.
+    """
     user = get_current_user_from_request(request)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized. Please sign in to upgrade.")
 
-    # Get Scholar monthly price from param_config or default to 750.0
+    tier_key, price_key, default_price = _resolve_paid_tier(payload.tier if payload else "scholar")
+
     conn = get_db()
     try:
-        cfg = conn.execute("SELECT param_value FROM param_config WHERE param_key = 'scholar_monthly_inr'").fetchone()
-        amount_inr = float(cfg[0]) if cfg and cfg[0] else 750.0
-    except Exception:
-        amount_inr = 750.0
+        # Student is a proof-gated tier: require curator/admin approval before payment.
+        if tier_key == "student":
+            row = conn.execute(
+                "SELECT verification_status FROM user_subscriptions WHERE user_id = ? LIMIT 1",
+                (user["sub"],)
+            ).fetchone()
+            vstatus = (row[0] if row else None)
+            if vstatus != "approved":
+                raise HTTPException(
+                    status_code=403,
+                    detail="Your Student application must be approved by a curator before payment. Please submit your Student ID for review first."
+                )
+
+        price_raw = get_param(conn, price_key, str(default_price))
+        try:
+            amount_inr = float(price_raw)
+        except Exception:
+            amount_inr = default_price
     finally:
         conn.close()
-    
-    order = create_subscription_order(amount_inr, user["sub"])
+
+    order = create_subscription_order(amount_inr, user["sub"], tier=tier_key)
     if "error" in order:
         raise HTTPException(status_code=500, detail=order["error"])
-        
+
     from config import RAZORPAY_KEY_ID
     return {
-        "order_id": order.get("id"), 
-        "amount": order.get("amount"), 
+        "order_id": order.get("id"),
+        "amount": order.get("amount"),
         "currency": order.get("currency"),
-        "key_id": RAZORPAY_KEY_ID
+        "key_id": RAZORPAY_KEY_ID,
+        "tier": tier_key,
+        "amount_inr": amount_inr
     }
 
 @app.post("/api/payment/verify")
 def api_verify_payment(payload: PaymentVerifyRequest, request: Request):
-    """Verifies payment and upgrades user tier in DB."""
+    """Verifies payment and activates the purchased tier (Student ₹350 / Scholar ₹750)."""
     user = get_current_user_from_request(request)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -619,33 +696,43 @@ def api_verify_payment(payload: PaymentVerifyRequest, request: Request):
         raise HTTPException(status_code=400, detail="Invalid payment signature")
         
     user_id = user["sub"]
-    
+    tier_key, price_key, default_price = _resolve_paid_tier(payload.tier)
+
     # Update Subscription in Database
     conn = get_db()
     try:
-        # Generate new subscription ID if needed or update existing
+        price_raw = get_param(conn, price_key, str(default_price))
+        try:
+            amount_inr = float(price_raw)
+        except Exception:
+            amount_inr = default_price
+
         sub_id = f"sub_{uuid.uuid4().hex[:12]}"
-        
-        # Check if user already has a row
         res = conn.execute("SELECT id FROM user_subscriptions WHERE user_id = ?", (user_id,)).fetchone()
         if res:
             conn.execute("""
                 UPDATE user_subscriptions 
-                SET tier = 'scholar_pro', status = 'active', payment_method = 'razorpay', 
-                    verification_status = 'approved',
+                SET tier = ?, status = 'active', payment_method = 'razorpay', 
+                    verification_status = 'approved', billing_cycle = 'monthly',
                     last_payment_date = CURRENT_TIMESTAMP, 
                     next_billing_date = CURRENT_TIMESTAMP + INTERVAL 30 DAY,
-                    amount_inr = 750.0 
+                    amount_inr = ?
                 WHERE user_id = ?
-            """, (user_id,))
+            """, (tier_key, amount_inr, user_id))
         else:
             conn.execute("""
                 INSERT INTO user_subscriptions 
-                (id, user_id, tier, status, amount_inr, payment_method, verification_status, last_payment_date, next_billing_date) 
-                VALUES (?, ?, 'scholar_pro', 'active', 750.0, 'razorpay', 'approved', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL 30 DAY)
-            """, (sub_id, user_id))
-            
-        return {"status": "success", "message": "Upgraded to Scholar Pro (₹750/mo) successfully! All premium iconographs and unlimited PDF downloads are now active."}
+                (id, user_id, tier, status, billing_cycle, amount_inr, payment_method, verification_status, last_payment_date, next_billing_date) 
+                VALUES (?, ?, ?, 'active', 'monthly', ?, 'razorpay', 'approved', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL 30 DAY)
+            """, (sub_id, user_id, tier_key, amount_inr))
+
+        tier_label = "Student" if tier_key == "student" else "Scholar"
+        return {
+            "status": "success",
+            "tier": tier_key,
+            "amount_inr": amount_inr,
+            "message": f"Upgraded to {tier_label} (\u20b9{int(amount_inr)}/mo) successfully! All premium iconographs and unlimited PDF downloads are now active."
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
@@ -784,7 +871,7 @@ def api_get_study(study_id: str, request: Request):
     study = conn.execute("""
         SELECT s.id, s.slug, s.title, s.subtitle, s.study_number,
                ser.name AS series_name, s.access_level, s.summary_markdown,
-               s.cover_image_url, s.total_slides
+               s.cover_image_url, s.total_slides, ser.id AS series_id
         FROM studies s
         JOIN series ser ON s.series_id = ser.id
         WHERE s.id = ? OR s.slug = ?
@@ -805,24 +892,102 @@ def api_get_study(study_id: str, request: Request):
     is_staff = user_role in ["admin", "curator"]
 
     has_premium_access = False
+    trial_limit_reached = False
+    study_limit = 3
     if is_free_study or is_staff:
         has_premium_access = True
     elif user_email:
-        # Check if user purchased or has active subscription
+        # Check if user purchased this study or has an active subscription
         paid = conn.execute("""
             SELECT COUNT(*) FROM premium_download_requests 
             WHERE LOWER(user_email) = LOWER(?) AND (study_id = ? OR status = 'approved' OR status = 'completed');
         """, (user_email, sid)).fetchone()
         sub = conn.execute("""
-            SELECT COUNT(*) FROM user_subscriptions
+            SELECT tier FROM user_subscriptions
             WHERE user_id = ? AND status = 'active'
-              AND (next_billing_date IS NULL OR next_billing_date >= CURRENT_TIMESTAMP);
+              AND (next_billing_date IS NULL OR next_billing_date >= CURRENT_TIMESTAMP)
+            LIMIT 1;
         """, (user.get("sub", ""),)).fetchone()
-        if (paid and paid[0] > 0) or (sub and sub[0] > 0):
+        has_paid = bool(paid and paid[0] > 0)
+        sub_tier = sub[0] if sub else None
+
+        if has_paid:
+            has_premium_access = True
+        elif sub_tier in ("trial_member", "trial"):
+            # Free trial: cap on the number of DISTINCT premium studies viewable.
+            try:
+                study_limit = int(float(get_param(conn, "trial_study_limit", "3") or 3))
+            except Exception:
+                study_limit = 3
+            # The current study_view was already logged at the top of this handler,
+            # so this count includes the study being opened now.
+            distinct_premium = conn.execute("""
+                SELECT COUNT(DISTINCT st.id)
+                FROM user_behavior_logs bl
+                JOIN studies st ON (bl.resource_id = st.id OR bl.resource_id = st.slug)
+                WHERE bl.user_id = ?
+                  AND bl.event_type = 'study_view'
+                  AND st.access_level != 'public'
+                  AND st.id != 's_ganesa_001';
+            """, (user.get("sub", ""),)).fetchone()
+            viewed = distinct_premium[0] if distinct_premium else 0
+            if study_limit <= 0 or viewed <= study_limit:
+                has_premium_access = True
+            else:
+                trial_limit_reached = True
+        elif sub_tier:
+            # Paid Student / Scholar tiers: full access
             has_premium_access = True
 
     if not has_premium_access:
+        # Configurable public preview: show a subset of slides to non-members.
+        # Count + which end (first/latest) are admin-configurable via param_config.
+        try:
+            prev_count = int(float(get_param(conn, "guest_slide_preview_count", "2") or 2))
+        except Exception:
+            prev_count = 2
+        prev_mode = (get_param(conn, "guest_slide_preview_mode", "latest") or "latest").strip().lower()
+
+        preview_slides = []
+        if prev_count > 0:
+            all_slides = conn.execute("""
+                SELECT id, slide_number, slide_title, image_url, thumbnail_url,
+                       caption, extracted_ocr_text, cleaned_text, visual_elements_summary
+                FROM study_slides
+                WHERE study_id = ?
+                ORDER BY slide_number ASC
+            """, (sid,)).fetchall()
+            subset = all_slides[-prev_count:] if prev_mode == "latest" else all_slides[:prev_count]
+            preview_slides = [
+                {
+                    "id": sl[0],
+                    "slide_number": sl[1],
+                    "slide_title": sl[2],
+                    "image_url": sl[3],
+                    "thumbnail_url": sl[4],
+                    "caption": sl[5],
+                    "raw_ocr": sl[6],
+                    "cleaned_text": sl[7],
+                    "summary": sl[8]
+                } for sl in subset
+            ]
         conn.close()
+
+        if trial_limit_reached:
+            lock_title = "Free Trial Study Limit Reached"
+            lock_message = (
+                f"Your free trial includes full access to {study_limit} premium studies "
+                "(plus all public studies, the Dictionary, and Search). Upgrade to "
+                "Student (\u20b9350/mo) or Scholar (\u20b9750/mo) to unlock the complete archive."
+            )
+        else:
+            lock_title = "Scholar Iconograph Access"
+            lock_message = (
+                "The free scholar access includes full study plates and OCR for Study 001 "
+                "(Ganesa Variations in Iconography) along with Dictionary and Search. To unlock "
+                "full multi-slide plates, high-res details, and OCR taxonomy for this iconograph, "
+                "upgrade to Student (\u20b9350/mo) or Scholar (\u20b9750/mo)."
+            )
         return {
             "id": study[0],
             "slug": study[1],
@@ -834,10 +999,14 @@ def api_get_study(study_id: str, request: Request):
             "summary": study[7],
             "cover_image_url": study[8],
             "total_slides": study[9],
+            "series_id": study[10],
             "is_premium_locked": True,
-            "lock_title": "Scholar Iconograph Access",
-            "lock_message": "The free scholar access includes full study plates and OCR for Study 001 (Ganesa Variations in Iconography) along with Dictionary and Search. To unlock full multi-slide plates, high-res details, and OCR taxonomy for this iconograph, upgrade to Student (₹350/mo) or Scholar (₹750/mo).",
-            "slides": [],
+            "trial_limit_reached": trial_limit_reached,
+            "lock_title": lock_title,
+            "lock_message": lock_message,
+            "is_preview": len(preview_slides) > 0,
+            "preview_count": len(preview_slides),
+            "slides": preview_slides,
             "taxonomy": []
         }
 
@@ -873,6 +1042,7 @@ def api_get_study(study_id: str, request: Request):
         "summary": study[7],
         "cover_image_url": study[8],
         "total_slides": study[9],
+        "series_id": study[10],
         "slides": [
             {
                 "id": sl[0],
@@ -949,15 +1119,19 @@ def api_download_study_pdf(study_id: str, request: Request):
             sub_tier = sub_row[0] if sub_row else "free"
             
             if sub_tier in ["trial_member", "trial", "free"]:
+                try:
+                    dl_limit = int(float(get_param(conn, "trial_download_limit", "1") or 1))
+                except Exception:
+                    dl_limit = 1
                 dl_count = conn.execute("""
                     SELECT COUNT(DISTINCT study_id) FROM user_downloads WHERE user_id = ?;
                 """, (user_id,)).fetchone()[0]
-                
-                if dl_count >= 1:
+
+                if dl_count >= dl_limit:
                     conn.close()
                     raise HTTPException(
                         status_code=403,
-                        detail="Free Trial download quota reached (1 download limit). Upgrade to Student (₹350/month) or Scholar (₹750/month) for unlimited 300 DPI PDF downloads."
+                        detail=f"Free Trial download quota reached ({dl_limit} download limit). Upgrade to Student (\u20b9350/month) or Scholar (\u20b9750/month) for unlimited 300 DPI PDF downloads."
                     )
 
     # Fetch all slides
@@ -1029,6 +1203,68 @@ def api_download_study_pdf(study_id: str, request: Request):
             "Content-Disposition": f'attachment; filename="{safe_filename}"',
             "X-Download-License": dl_id
         }
+    )
+
+@app.get("/api/series/{series_id}/pdf")
+def api_download_series_pdf(series_id: str, request: Request):
+    """
+    Download an entire curatorial series as a single images-only PDF:
+    every plate image from every study in the series, one image per page,
+    ordered by study number then slide number. No text or templates.
+    """
+    user = get_current_user_from_request(request)
+    user_role = user.get("role", "guest") if user else "guest"
+    conn = get_db()
+
+    series = conn.execute(
+        "SELECT id, name FROM series WHERE id = ?", (series_id,)
+    ).fetchone()
+    if not series:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Series not found")
+    ser_id, ser_name = series[0], series[1]
+
+    # Access: staff or active subscribers may export a full series bundle.
+    is_staff = user_role in ["admin", "curator"]
+    has_sub = False
+    if user and user.get("sub"):
+        sub = conn.execute("""
+            SELECT COUNT(*) FROM user_subscriptions
+            WHERE user_id = ? AND status = 'active'
+              AND (next_billing_date IS NULL OR next_billing_date >= CURRENT_TIMESTAMP);
+        """, (user.get("sub"),)).fetchone()
+        has_sub = bool(sub and sub[0] > 0)
+
+    if not (is_staff or has_sub):
+        conn.close()
+        raise HTTPException(
+            status_code=403,
+            detail=("Full-series PDF export is available to Student (\u20b9350/mo) or "
+                    "Scholar (\u20b9750/mo) members. Individual public studies remain free to download.")
+        )
+
+    rows = conn.execute("""
+        SELECT ss.image_url
+        FROM studies s
+        JOIN study_slides ss ON ss.study_id = s.id
+        WHERE s.series_id = ?
+        ORDER BY s.study_number ASC, s.id ASC, ss.slide_number ASC
+    """, (ser_id,)).fetchall()
+    conn.close()
+
+    image_urls = [r[0] for r in rows if r[0]]
+    if not image_urls:
+        raise HTTPException(status_code=404, detail="No plate images found for this series.")
+
+    pdf_buffer = generate_image_only_pdf(image_urls)
+
+    safe = (ser_name or "series").lower().replace(" ", "_").replace("&", "and")
+    safe = "".join(ch for ch in safe if ch.isalnum() or ch in ("_", "-")) or "series"
+
+    return Response(
+        content=pdf_buffer.getvalue(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{safe}_series_plates.pdf"'}
     )
 
 @app.get("/api/taxonomy/hierarchy")
@@ -1179,16 +1415,17 @@ def api_review_student_application(sub_id: str, payload: StudentReviewPayload, r
     reviewer_email = user.get("email", "admin@fivemetalmasonry.com")
 
     if action == "approve":
+        # Approval verifies eligibility but does NOT grant access; the applicant must
+        # then pay the Student price to activate (status flips to 'active' on payment).
         conn.execute("""
             UPDATE user_subscriptions
             SET verification_status = 'approved',
-                status = 'active',
+                status = 'approved',
                 verified_by = ?,
-                verified_at = CURRENT_TIMESTAMP,
-                next_billing_date = CURRENT_TIMESTAMP + INTERVAL 30 DAY
+                verified_at = CURRENT_TIMESTAMP
             WHERE id = ?;
         """, (reviewer_email, sub_id))
-        msg = "Student application approved. Student tier activated at ₹350/mo."
+        msg = "Student application approved. The applicant can now pay \u20b9350/mo to activate Student access."
     else:
         conn.execute("""
             UPDATE user_subscriptions
@@ -1777,6 +2014,53 @@ def api_gallery_3d_data():
         "total_slides": len(slides),
         "slides": slides
     }
+
+@app.get("/api/hero-slides")
+def api_hero_slides(limit: int = Query(4, ge=1, le=12)):
+    """
+    Returns the most recently uploaded slide plates for the landing-page hero
+    carousel. Ordered by insertion order (DuckDB rowid DESC) so the newest
+    curated uploads always surface first.
+    """
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT
+            s.id AS slide_id,
+            s.slide_number,
+            s.slide_title,
+            s.image_url,
+            st.id AS study_id,
+            st.title AS study_title,
+            st.subtitle AS study_subtitle,
+            st.access_level,
+            st.total_slides
+        FROM study_slides s
+        JOIN studies st ON s.study_id = st.id
+        ORDER BY s.rowid DESC
+        LIMIT ?
+    """, (limit,)).fetchall()
+    conn.close()
+
+    slides = []
+    for r in rows:
+        slide_number, slide_title, image_url = r[1], r[2], r[3]
+        study_title, study_subtitle, access_level, total_slides = r[5], r[6], r[7], r[8]
+        is_public = (access_level or "").lower() == "public"
+        if is_public and total_slides:
+            badge = f"Public Study \u00b7 Plate {slide_number} of {total_slides}"
+        elif is_public:
+            badge = "Public Study \u00b7 Featured Plate"
+        else:
+            badge = "Masterpiece Study \u00b7 Featured Plate"
+        slides.append({
+            "badge": badge,
+            "title": slide_title or study_title or f"Plate {slide_number}",
+            "sub": study_subtitle or "Sacred Panchaloha Bronze Iconography",
+            "img": f"/{image_url}" if image_url and not image_url.startswith('/') else image_url,
+            "study_id": r[4]
+        })
+
+    return {"status": "success", "count": len(slides), "slides": slides}
 
 # ----------------------------------------------------------------------------
 # 5. FRONTEND SPA SERVING

@@ -336,6 +336,22 @@ The database schema is partitioned into four distinct architectural domains acro
   2. Modal lists active licenses with direct 300 DPI download links.
   3. Story Points: 3 | Priority: Medium | Status: **Completed**
 
+#### Story 5.4: Student vs Scholar Membership Tiers & Configurable Free Trial
+- **As a** prospective member,
+- **I want** to choose between a subsidized Student tier and an instant Scholar tier, with a free trial to evaluate first,
+- **So that** cost is the only meaningful difference between tiers and eligibility is fairly gated.
+- **Model** (all values live in `param_config`, editable by admins):
+  - **Free Trial**: `trial_duration_days` (default 30), `trial_study_limit` distinct premium studies (default 3), `trial_download_limit` PDFs (default 1). Public studies, Dictionary, and Search remain unrestricted during and after trial.
+  - **Student**: `student_monthly_inr` (default ₹350/mo). Requires student ID/proof upload on onboarding and curator/admin **review & approval**. Approval verifies eligibility only; the applicant then pays to activate.
+  - **Scholar**: `scholar_monthly_inr` (default ₹750/mo). Instant, no proof. Identical content access to Student — the tiers differ **only by cost + the proof/approval requirement**.
+- **Acceptance Criteria**:
+  1. Trial provisioning reads `trial_duration_days`; trial users are blocked after `trial_study_limit` distinct premium studies and after `trial_download_limit` downloads.
+  2. `POST /api/payment/create-order` is tier-aware; Student orders are rejected (403) unless `verification_status='approved'`.
+  3. `POST /api/payment/verify` activates the purchased tier at the configured price and sets `status='active'`.
+  4. Approving a Student application sets `status='approved'` (not `active`); access begins only after payment.
+  5. Frontend tier cards and buttons reflect `param_config` prices, trial duration, and download allowance.
+  6. Story Points: 8 | Priority: High | Status: **Completed**
+
 ---
 
 ### EPIC 6: Scholarly Vector Iconography & Visual Aesthetics

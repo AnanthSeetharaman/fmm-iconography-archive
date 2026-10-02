@@ -68,7 +68,7 @@
   <!-- Razorpay Checkout -->
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   
-  <link rel="stylesheet" href="styles.css?v=12">
+  <link rel="stylesheet" href="styles.css?v=14">
 </head>
 
 <body class="drm-protected">
@@ -102,6 +102,10 @@
         </button>
         <button class="nav-tab-btn role-gated-tab" data-tab="admin_studio" data-role-required="admin">
           <span><img src="assets/icons/sasana-registry.svg" class="fmm-icon" alt="" /></span> Data Studio
+          <span class="badge">Admin</span>
+        </button>
+        <button class="nav-tab-btn role-gated-tab" data-tab="settings" data-role-required="admin">
+          <span><img src="assets/icons/kunchika-key.svg" class="fmm-icon" alt="" /></span> Settings
           <span class="badge">Admin</span>
         </button>
         <button class="nav-tab-btn" data-tab="about">
@@ -519,8 +523,12 @@
 
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                 <h4 style="font-family:var(--font-serif); font-size:18px; margin:0;" id="ocrPlateHeader">Visual Plate Inspection</h4>
-                <span id="ocrPlateBadge" class="badge"
-                  style="background:var(--paper-sunken); font-size:11px; color:var(--ink-soft);">Plate 1</span>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <button id="ocrPrevPlateBtn" class="ctrl-btn" title="Previous Plate" onclick="showOcrPlate((state.ocrPlateIndex||0)-1)" style="display:none; padding:4px 8px;"><img src="assets/icons/arrow-left.svg" class="fmm-icon" alt="Prev" /></button>
+                  <span id="ocrPlateBadge" class="badge"
+                    style="background:var(--paper-sunken); font-size:11px; color:var(--ink-soft);">Plate 1</span>
+                  <button id="ocrNextPlateBtn" class="ctrl-btn" title="Next Plate" onclick="showOcrPlate((state.ocrPlateIndex||0)+1)" style="display:none; padding:4px 8px;"><img src="assets/icons/arrow-right.svg" class="fmm-icon" alt="Next" /></button>
+                </div>
               </div>
               <div class="stage-img-wrapper" style="position:relative;">
                 <img id="ocrPreviewImg" src="" alt="OCR Preview"
@@ -1786,20 +1794,20 @@
             <div class="apple-tier-head">
               <div class="apple-tier-icon"><img src="assets/icons/grantha-lexicon.svg" class="fmm-icon" alt="" /></div>
               <h3 class="apple-tier-name">Free Trial</h3>
-              <div class="apple-tier-price">15 Days<span class="apple-price-note">access</span></div>
+              <div class="apple-tier-price"><span id="cfgTrialDays">30</span> Days<span class="apple-price-note">access</span></div>
               <p class="apple-tier-tagline">Explore the archive and start with canonical studies.</p>
             </div>
             <div class="apple-tier-divider"></div>
             <ul class="apple-feature-list">
-              <li class="apple-feature-yes"><span class="apple-check"></span> 15-day full archival access</li>
+              <li class="apple-feature-yes"><span class="apple-check"></span> <span id="cfgTrialDaysFeature">30</span>-day full archival access</li>
               <li class="apple-feature-yes"><span class="apple-check"></span> Full access to Study 001 (Ganesa Variations)</li>
               <li class="apple-feature-yes"><span class="apple-check"></span> Search entire iconography corpus</li>
               <li class="apple-feature-yes"><span class="apple-check"></span> Dictionary of Shilpa Shastra terms</li>
-              <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> <strong>1 High-Res PDF Download</strong> included</li>
+              <li class="apple-feature-yes apple-feature-highlight"><span class="apple-check"></span> <strong><span id="cfgTrialDownloads">1</span> High-Res PDF Download</strong> included</li>
               <li class="apple-feature-no">Unlimited PDF downloads</li>
             </ul>
             <div class="apple-tier-cta">
-              <button class="apple-btn apple-btn-outline" onclick="openAuthModal()">Start 15-Day Free Trial</button>
+              <button class="apple-btn apple-btn-outline" onclick="openAuthModal()">Start <span id="cfgTrialDaysBtn">30</span>-Day Free Trial</button>
             </div>
           </div>
 
@@ -1809,7 +1817,7 @@
             <div class="apple-tier-head">
               <div class="apple-tier-icon"><img src="assets/icons/padma-scholar.svg" class="fmm-icon" alt="" /></div>
               <h3 class="apple-tier-name">Student Scholar</h3>
-              <div class="apple-tier-price"><span class="apple-currency">&#8377;</span>350<span class="apple-price-note">/month</span></div>
+              <div class="apple-tier-price"><span class="apple-currency">&#8377;</span><span id="cfgStudentPrice">350</span><span class="apple-price-note">/month</span></div>
               <p class="apple-tier-tagline">Subsidized research tier for university &amp; gurukula students.</p>
             </div>
             <div class="apple-tier-divider"></div>
@@ -1834,7 +1842,7 @@
             <div class="apple-tier-head">
               <div class="apple-tier-icon"><img src="assets/icons/varaha-coin.svg" class="fmm-icon" alt="" /></div>
               <h3 class="apple-tier-name">Scholar Pro</h3>
-              <div class="apple-tier-price"><span class="apple-currency">&#8377;</span>750<span class="apple-price-note">/month</span></div>
+              <div class="apple-tier-price"><span class="apple-currency">&#8377;</span><span id="cfgScholarPrice">750</span><span class="apple-price-note">/month</span></div>
               <p class="apple-tier-tagline">Instant activation with no proof needed. Complete unrestricted access.</p>
             </div>
             <div class="apple-tier-divider"></div>
@@ -1848,7 +1856,7 @@
             </ul>
             
             <div class="apple-tier-cta">
-              <button class="apple-btn apple-btn-fill" id="memberTabPayBtn" onclick="initiateRazorpayPayment();" style="background-color: #B58B4B; color: #fff; width: 100%;">
+              <button class="apple-btn apple-btn-fill" id="memberTabPayBtn" onclick="initiateRazorpayPayment('scholar');" style="background-color: #B58B4B; color: #fff; width: 100%;">
                 Upgrade to Scholar (&#8377;750/mo)
               </button>
             </div>
@@ -1871,6 +1879,35 @@
           </div>
         </div>
 
+      </div>
+    </section>
+
+    <!-- ==================================================================== -->
+    <!-- SCREEN 7: ADMIN CONFIGURATION / SETTINGS                             -->
+    <!-- ==================================================================== -->
+    <section class="screen-pane" id="tab-settings">
+      <div style="margin-bottom:18px;">
+        <h2 class="screen-title">Archive Configuration</h2>
+        <p style="color:var(--muted); font-size:13.5px; margin:4px 0 0 0;">Administrator-only. Configure rates, membership, free-trial limits, public slide preview, feature toggles, and branding. Changes apply live across the app.</p>
+      </div>
+
+      <div id="settingsAdminGate" style="display:none; padding:32px; text-align:center; color:var(--muted); background:var(--paper-raised); border:1px solid var(--line); border-radius:var(--radius-md);">
+        <img src="assets/icons/kunchika-key.svg" class="fmm-icon" style="width:26px;height:26px;opacity:0.7;" alt="" />
+        <p style="margin-top:8px;">Administrator access is required to view and edit configuration.</p>
+      </div>
+
+      <div id="settingsContent">
+        <div id="settingsSpinner" style="text-align:center; padding:44px;">
+          <div class="scholarly-spinner-ring">
+            <img src="assets/icons/dharma-chakra.svg" class="fmm-icon rotating-chakra" style="width:32px;height:32px;" alt="Loading" />
+          </div>
+          <p style="color:var(--muted); margin-top:10px;">Loading configuration…</p>
+        </div>
+        <div id="settingsGroups"></div>
+        <div id="settingsActionBar" style="position:sticky; bottom:0; background:var(--paper-raised); border-top:1px solid var(--line); padding:14px 0; margin-top:20px; gap:12px; align-items:center; justify-content:flex-end; display:none;">
+          <span id="settingsSaveStatus" style="color:var(--muted); font-size:13px;"></span>
+          <button id="settingsSaveBtn" class="btn-primary btn-gold" onclick="saveAdminSettings()" style="padding:10px 22px;">Save Changes</button>
+        </div>
       </div>
     </section>
   </div> <!-- /.app-shell -->
@@ -1961,11 +1998,16 @@
           <div id="studyNotesTaxonomyGrid" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
         </div>
       </div>
-      <div style="padding:14px 22px; background:var(--paper-sunken); border-top:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;">
+      <div style="padding:14px 22px; background:var(--paper-sunken); border-top:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:10px;">
         <button class="btn-secondary" onclick="closeModal('studyNotesModal')">Close</button>
-        <button class="btn-primary" id="studyNotesPdfBtn" onclick="handleStudyNotesPdfDownload()">
-          <span><img src="assets/icons/tamra-download.svg" class="fmm-icon" alt="" /></span> Download as PDF
-        </button>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button class="btn-secondary" id="studyNotesSeriesBtn" style="display:none;" onclick="handleStudyNotesSeriesDownload()">
+            <span><img src="assets/icons/tamra-download.svg" class="fmm-icon" alt="" /></span> Full Series PDF
+          </button>
+          <button class="btn-primary" id="studyNotesPdfBtn" onclick="handleStudyNotesPdfDownload()">
+            <span><img src="assets/icons/tamra-download.svg" class="fmm-icon" alt="" /></span> Download as PDF
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -2356,6 +2398,11 @@
       <span class="tab-icon"><img src="assets/icons/sasana-registry.svg" class="fmm-icon" alt="" /></span>
       <span class="tab-label">Data Studio</span>
     </button>
+    <button class="mobile-tab-btn role-gated-tab" data-tab="settings" data-role-required="admin"
+      onclick="switchTab('settings')">
+      <span class="tab-icon"><img src="assets/icons/kunchika-key.svg" class="fmm-icon" alt="" /></span>
+      <span class="tab-label">Settings</span>
+    </button>
     <button class="mobile-tab-btn" data-tab="about" onclick="switchTab('about')">
       <span class="tab-icon"><img src="assets/icons/grantha-lexicon.svg" class="fmm-icon" alt="" /></span>
       <span class="tab-label">About</span>
@@ -2372,7 +2419,7 @@
 
   <script src="assets/gallery_3d.js"></script>
   <script src="assets/hero_3d_iconography.js?v=3"></script>
-  <script src="app.js?v=22"></script>
+  <script src="app.js?v=27"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       if (window.FMMHeroIconography3D) {
@@ -2590,9 +2637,9 @@
 
         <div style="display:flex; flex-direction:column; gap:10px;">
           <button class="btn-primary btn-gold" id="gateModalPayBtn"
-            onclick="initiateRazorpayPayment();"
+            onclick="initiateRazorpayPayment('scholar');"
             style="width:100%; justify-content:center; padding:14px; font-size:14px; margin-bottom: 8px;">
-            <span><img src="assets/icons/padma-scholar.svg" class="fmm-icon" alt="" /></span> Upgrade to Scholar Pro (₹499/yr)
+            <span><img src="assets/icons/padma-scholar.svg" class="fmm-icon" alt="" /></span> Upgrade to Scholar (₹750/mo)
           </button>
           
           <button class="btn-primary" 

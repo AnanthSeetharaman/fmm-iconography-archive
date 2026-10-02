@@ -145,22 +145,184 @@ function getConfig(group, key, defaultVal) {
 }
 
 function applyConfigToUI() {
-  // Apply pricing to member tab
-  const priceEl = document.querySelector(".tier-price");
-  if (priceEl && APP_CONFIG.pricing && APP_CONFIG.pricing.scholar_pro_annual_inr) {
-    // Find the Scholar Pro tier price element
-    const proPrice = document.querySelector(".tier-pro .tier-price");
-    if (proPrice) {
-      const price = APP_CONFIG.pricing.scholar_pro_annual_inr;
-      proPrice.innerHTML = "\u20B9" + price + "<span class=\"tier-price-period\">/year</span>";
-    }
+  const p = APP_CONFIG.pricing || {};
+  const setText = (id, val) => {
+    const el = document.getElementById(id);
+    if (el && val !== undefined && val !== null) el.textContent = val;
+  };
+
+  // Tier pricing (monthly) driven by param_config
+  setText("cfgScholarPrice", p.scholar_monthly_inr);
+  setText("cfgStudentPrice", p.student_monthly_inr);
+
+  // Free-trial duration + download allowance
+  if (p.trial_duration_days !== undefined) {
+    setText("cfgTrialDays", p.trial_duration_days);
+    setText("cfgTrialDaysFeature", p.trial_duration_days);
+    setText("cfgTrialDaysBtn", p.trial_duration_days);
   }
+  setText("cfgTrialDownloads", p.trial_download_limit);
 
   // Apply branding
   if (APP_CONFIG.branding && APP_CONFIG.branding.watermark_text) {
     document.querySelectorAll(".watermark-badge").forEach(el => {
       el.textContent = APP_CONFIG.branding.watermark_text;
     });
+  }
+}
+
+// ============================================================================
+// ADMIN CONFIGURATION SCREEN (Settings)
+// ============================================================================
+const SETTINGS_VISIBLE_GROUPS = ["pricing", "features", "branding"];
+const SETTINGS_GROUP_META = {
+  pricing:  { label: "Rates, Membership & Trial", icon: "varaha-coin.svg" },
+  features: { label: "Features & Public Preview", icon: "drishti-lens.svg" },
+  branding: { label: "Branding", icon: "grantha-lexicon.svg" }
+};
+const SETTINGS_ENUMS = {
+  payment_gateway: ["gpay", "razorpay", "stripe"],
+  guest_ocr_snippets: ["visible", "hidden", "truncated"],
+  guest_slide_preview_mode: ["first", "latest"]
+};
+let ADMIN_SETTINGS_CACHE = [];
+
+function prettifySettingKey(key) {
+  return key
+    .replace(/_/g, " ")
+    .replace(/\binr\b/gi, "(INR)")
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+async function loadAdminSettings() {
+  const isAdmin = state.currentUser && state.currentUser.role === "admin";
+  const gate = document.getElementById("settingsAdminGate");
+  const content = document.getElementById("settingsContent");
+  if (!isAdmin) {
+    if (gate) gate.style.display = "block";
+    if (content) content.style.display = "none";
+    return;
+  }
+  if (gate) gate.style.display = "none";
+  if (content) content.style.display = "block";
+
+  const spinner = document.getElementById("settingsSpinner");
+  const groupsEl = document.getElementById("settingsGroups");
+  const actionBar = document.getElementById("settingsActionBar");
+  if (spinner) spinner.style.display = "block";
+  if (groupsEl) groupsEl.innerHTML = "";
+  if (actionBar) actionBar.style.display = "none";
+
+  try {
+    const res = await fetch(API_BASE + "/api/config/all");
+    if (!res.ok) throw new Error("Failed to load configuration (HTTP " + res.status + ")");
+    const data = await res.json();
+    ADMIN_SETTINGS_CACHE = data.configs || [];
+    renderAdminSettings();
+    if (actionBar) actionBar.style.display = "flex";
+  } catch (e) {
+    if (groupsEl) groupsEl.innerHTML = `<div style="padding:20px; color:var(--danger);">${e.message}</div>`;
+  } finally {
+    if (spinner) spinner.style.display = "none";
+  }
+}
+
+function renderAdminSettings() {
+  const groupsEl = document.getElementById("settingsGroups");
+  if (!groupsEl) return;
+  const rows = ADMIN_SETTINGS_CACHE.filter(r => SETTINGS_VISIBLE_GROUPS.includes(r.param_group) && !r.is_sensitive);
+  const byGroup = {};
+  rows.forEach(r => { (byGroup[r.param_group] = byGroup[r.param_group] || []).push(r); });
+
+  let html = "";
+  SETTINGS_VISIBLE_GROUPS.forEach(group => {
+    const list = byGroup[group];
+    if (!list || !list.length) return;
+    const meta = SETTINGS_GROUP_META[group] || { label: group, icon: "sasana-registry.svg" };
+    list.sort((a, b) => a.param_key.localeCompare(b.param_key));
+    html += `<div class="settings-group" style="margin-bottom:22px; background:var(--paper-raised); border:1px solid var(--line); border-radius:var(--radius-md); padding:18px;">`;
+    html += `<h3 style="display:flex; align-items:center; gap:8px; font-family:var(--font-serif); font-size:16px; margin:0 0 12px 0;"><img src="assets/icons/${meta.icon}" class="fmm-icon" style="width:18px;height:18px;" alt="" /> ${meta.label}</h3>`;
+    list.forEach(r => { html += renderSettingField(r); });
+    html += `</div>`;
+  });
+  groupsEl.innerHTML = html || `<div style="padding:20px; color:var(--muted);">No editable configuration found.</div>`;
+}
+
+function renderSettingField(r) {
+  const id = "setting_" + r.id;
+  const label = prettifySettingKey(r.param_key);
+  const desc = r.description || "";
+  const val = r.param_value;
+  let control = "";
+  if (r.value_type === "boolean") {
+    const checked = String(val).toLowerCase() === "true" ? "checked" : "";
+    control = `<label style="display:inline-flex; align-items:center; gap:6px; font-size:13px;"><input type="checkbox" id="${id}" data-config-id="${r.id}" data-type="boolean" ${checked}/> Enabled</label>`;
+  } else if (SETTINGS_ENUMS[r.param_key]) {
+    const opts = SETTINGS_ENUMS[r.param_key].map(o => `<option value="${o}" ${String(val) === o ? "selected" : ""}>${o}</option>`).join("");
+    control = `<select id="${id}" data-config-id="${r.id}" data-type="string" class="form-input" style="max-width:220px;">${opts}</select>`;
+  } else if (r.value_type === "number") {
+    control = `<input type="number" step="any" id="${id}" data-config-id="${r.id}" data-type="number" class="form-input" value="${val}" style="max-width:180px;" />`;
+  } else {
+    const safe = (val == null ? "" : String(val)).replace(/"/g, "&quot;");
+    control = `<input type="text" id="${id}" data-config-id="${r.id}" data-type="string" class="form-input" value="${safe}" style="max-width:320px;" />`;
+  }
+  return `<div class="settings-field" style="display:flex; flex-direction:column; gap:4px; padding:10px 0; border-bottom:1px dashed var(--line);">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+      <label for="${id}" style="font-weight:600; font-size:13.5px;">${label} <code style="color:var(--muted); font-weight:400; font-size:11px;">${r.param_key}</code></label>
+      ${control}
+    </div>
+    ${desc ? `<span style="color:var(--muted); font-size:12px;">${desc}</span>` : ""}
+  </div>`;
+}
+
+async function saveAdminSettings() {
+  const btn = document.getElementById("settingsSaveBtn");
+  const status = document.getElementById("settingsSaveStatus");
+
+  const changes = [];
+  ADMIN_SETTINGS_CACHE.forEach(r => {
+    const el = document.getElementById("setting_" + r.id);
+    if (!el) return;
+    const newVal = el.dataset.type === "boolean" ? (el.checked ? "true" : "false") : String(el.value);
+    if (newVal !== String(r.param_value)) changes.push({ id: r.id, param_value: newVal, key: r.param_key });
+  });
+
+  if (!changes.length) {
+    if (status) status.textContent = "No changes to save.";
+    return;
+  }
+
+  const origHtml = btn ? btn.innerHTML : "";
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<img src="assets/icons/dharma-chakra.svg" class="fmm-icon rotating-chakra" style="width:16px;height:16px;vertical-align:middle;" alt="" /> Saving…`;
+  }
+  if (status) status.textContent = `Saving ${changes.length} change(s)…`;
+
+  try {
+    for (const c of changes) {
+      const res = await fetch(`${API_BASE}/api/config/${c.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ param_value: c.param_value })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Failed to save ${c.key}`);
+      }
+      const row = ADMIN_SETTINGS_CACHE.find(r => r.id === c.id);
+      if (row) row.param_value = c.param_value;
+    }
+    if (typeof showToast === "function") showToast(`Saved ${changes.length} configuration change(s).`);
+    if (status) status.textContent = "Refreshing app…";
+    // Live refresh: re-pull public config and re-apply to member cards / pricing.
+    await loadAppConfig();
+    if (status) status.textContent = "All changes applied live.";
+  } catch (e) {
+    if (typeof showToast === "function") showToast("⚠️ " + e.message);
+    if (status) status.textContent = "Error: " + e.message;
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = origHtml || "Save Changes"; }
   }
 }
 
@@ -279,6 +441,7 @@ function switchTab(tabId) {
     loadArchivalTelemetry();
   }
   if (tabId === "about") setTimeout(initAbout3D, 50);
+  if (tabId === "settings") loadAdminSettings();
   if (tabId === "threed_gallery") {
     if (typeof exhibition3DInstance === "object" && exhibition3DInstance.refreshSize) {
       setTimeout(() => exhibition3DInstance.refreshSize(), 50);
@@ -624,33 +787,51 @@ function updateMemberTierHighlights() {
   const cards = document.querySelectorAll(".apple-tier-card");
   if (cards.length < 3) return;
 
-  const [guestCard, scholarCard, proCard] = cards;
-
-  // Reset highlights
+  // Card order in index.html: Free Trial, Student, Scholar
+  const [trialCard, studentCard, scholarCard] = cards;
   cards.forEach(c => c.style.outline = "");
 
   if (!state.currentUser) {
-    // Guest state
-    const guestBtn = guestCard.querySelector(".apple-tier-cta button");
+    const guestBtn = trialCard.querySelector(".apple-tier-cta button");
     if (guestBtn) { guestBtn.textContent = "Current Access"; guestBtn.disabled = true; }
-  } else if (state.currentUser.subscription_tier === "scholar_pro") {
-    // Pro state
-    const proBtn = proCard.querySelector(".apple-tier-cta button");
-    if (proBtn) {
-      proBtn.textContent = "Active";
-      proBtn.disabled = true;
-      proBtn.className = "apple-btn apple-btn-outline";
-    }
-    proCard.style.outline = "2px solid var(--bronze)";
-  } else {
-    // Scholar / Trial / Admin state (can still upgrade)
-    const isTrial = state.currentUser.subscription_tier === "trial_member";
-    const schBtn = scholarCard.querySelector(".apple-tier-cta button");
-    if (schBtn) { 
-      schBtn.textContent = isTrial ? "Trial Active" : "Current Plan"; 
-      schBtn.disabled = true; 
+    return;
+  }
+
+  const u = state.currentUser;
+  const tier = u.subscription_tier;
+  const status = u.subscription_status;
+  const studentBtn = studentCard.querySelector(".apple-tier-cta button");
+  const scholarBtn = scholarCard.querySelector(".apple-tier-cta button");
+  const trialBtn = trialCard.querySelector(".apple-tier-cta button");
+
+  if (tier === "scholar_pro" || tier === "scholar") {
+    if (scholarBtn) {
+      scholarBtn.textContent = "Active";
+      scholarBtn.disabled = true;
+      scholarBtn.className = "apple-btn apple-btn-outline";
     }
     scholarCard.style.outline = "2px solid var(--bronze)";
+  } else if (tier === "student") {
+    if (studentBtn) {
+      if (status === "active") {
+        studentBtn.textContent = "Current Plan";
+        studentBtn.disabled = true;
+      } else if (status === "approved") {
+        studentBtn.textContent = "Pay \u20b9350 to Activate";
+        studentBtn.disabled = false;
+        studentBtn.setAttribute("onclick", "initiateRazorpayPayment('student')");
+      } else if (status === "rejected") {
+        studentBtn.textContent = "Application Rejected";
+        studentBtn.disabled = true;
+      } else {
+        studentBtn.textContent = "Under Curator Review";
+        studentBtn.disabled = true;
+      }
+    }
+    studentCard.style.outline = "2px solid #4A7C59";
+  } else if (tier === "trial_member") {
+    if (trialBtn) { trialBtn.textContent = "Trial Active"; trialBtn.disabled = true; }
+    trialCard.style.outline = "2px solid var(--bronze)";
   }
 }
 
@@ -1015,9 +1196,11 @@ function renderSearchResults(studies) {
     const isLockedStudy = study.requires_subscription && (!state.currentUser || (state.currentUser.role === 'scholar' && !state.currentUser.has_active_sub));
 
     if (isLockedStudy) {
-      // Soft gate: show first 2 slide thumbnails as preview, then fade overlay with CTA
-      const previewSlides = slides.slice(0, 2);
-      const lockedCount = Math.max(0, slides.length - 2);
+      // Soft gate: show an admin-configurable preview of slides, then fade overlay with CTA
+      const prevCount = parseInt(getConfig('features', 'guest_slide_preview_count', 2), 10) || 0;
+      const prevMode = String(getConfig('features', 'guest_slide_preview_mode', 'latest')).toLowerCase();
+      const previewSlides = prevCount <= 0 ? [] : (prevMode === 'latest' ? slides.slice(-prevCount) : slides.slice(0, prevCount));
+      const lockedCount = Math.max(0, slides.length - previewSlides.length);
       card.innerHTML += `
         <div class="soft-gate-preview">
           <div class="soft-gate-slides-row">
@@ -1594,66 +1777,144 @@ async function handleFileUpload(fileOrFiles) {
     </div>
   `;
 
-  const formData = new FormData();
-  files.forEach(f => formData.append("files", f));
-  formData.append("file", files[0]);
-  formData.append("study_slug", state.selectedStudySlug || "ganesa-variations-in-iconography");
-  formData.append("engine", engine);
+  // Upload plates sequentially so we can show live "Processing k of N" progress
+  // and so one invalid image does not fail the whole batch.
+  state.ocrPlates = [];
+  state.ocrPlateIndex = 0;
+  const skipped = [];
+  const studySlug = state.selectedStudySlug || "ganesa-variations-in-iconography";
 
-  try {
-    const res = await fetch(`${API_BASE}/api/ocr/upload`, {
-      method: "POST",
-      body: formData
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.detail || "Image upload rejected by server.");
-    }
-    state.ocrResult = data;
-
-    updateOcrPipelineStep(3);
-    setTimeout(() => updateOcrPipelineStep(4), 400);
-
-    // Display side-by-side
-    previewImg.src = formatImageUrl(data.image_url);
-    rawTextEl.innerText = data.raw_ocr;
-    cleanedTextEl.innerText = data.cleaned_ocr;
-    if (storageUriEl) storageUriEl.innerText = data.image_url;
-    if (wordCountEl) wordCountEl.innerText = `${data.word_count || data.cleaned_ocr.split(/\s+/).length} words`;
-    
-    if (data.engine_used) {
-      const tag = document.getElementById("ocrEngineIndicatorTag");
-      if (tag) tag.innerText = data.engine_used;
-    }
-
-    renderProposals(data.proposals);
-    updatePrecommitImpact(data.proposals);
-
-    stage.style.display = "block";
+  for (let k = 0; k < files.length; k++) {
     uploadPrompt.innerHTML = `
-      <div style="display:flex; align-items:center; justify-content:center; gap:8px; color:var(--success); font-weight:700;">
-        <img src="assets/icons/pramana-check.svg" class="fmm-icon" style="width:16px; height:16px;" alt="" />
-        <span>Extraction complete (${data.total_uploaded || 1} plate(s), ${data.word_count} words recognized with IAST diacritic restoration)</span>
+      <div style="display:flex; align-items:center; justify-content:center; gap:10px; color:var(--accent); font-weight:700; padding:10px;">
+        <img src="assets/icons/dharma-chakra.svg" class="fmm-icon rotating-chakra" style="width:20px; height:20px;" alt="" />
+        <span>Processing plate ${k + 1} of ${files.length} &middot; ${engineLabel} &amp; Sanskrit IAST...</span>
       </div>
     `;
-    if (files.length > 1 && typeof showToast === "function") {
-      showToast(`Ingested ${files.length} plates for series: ${data.word_count} words recognized`);
+    const fd = new FormData();
+    fd.append("file", files[k]);
+    fd.append("files", files[k]);
+    fd.append("study_slug", studySlug);
+    fd.append("engine", engine);
+    try {
+      const res = await fetch(`${API_BASE}/api/ocr/upload`, { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Image rejected by server.");
+      const p = (data.uploaded_slides && data.uploaded_slides[0]) ? data.uploaded_slides[0] : data;
+      const cleaned = p.cleaned_ocr || "";
+      state.ocrPlates.push({
+        image_url: p.image_url,
+        raw_ocr: p.raw_ocr || cleaned || "",
+        cleaned_ocr: cleaned,
+        word_count: p.word_count || (cleaned ? cleaned.split(/\s+/).length : 0),
+        engine_used: p.engine_used || data.engine_used,
+        slide_title: (files[k].name || `Plate ${k + 1}`).replace(/\.[^.]+$/, ""),
+        proposals: (p.proposals || data.proposals || []).map(pr => ({ ...pr, approved: pr.approved !== false }))
+      });
+    } catch (err) {
+      console.error(`OCR upload failed for ${files[k].name}:`, err);
+      skipped.push({ name: files[k].name, reason: err.message });
     }
-  } catch (err) {
-    console.error("OCR Upload failed:", err);
+  }
+
+  if (state.ocrPlates.length === 0) {
     stage.style.display = "none";
     uploadPrompt.innerHTML = `
       <div style="color:var(--danger); padding:12px 16px; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); border-radius:var(--radius-md); font-size:13px; line-height:1.5; margin-top:8px;">
-        <strong>⚠️ Shilpa Shastra Validation Error:</strong><br/>
-        <span>${err.message}</span>
+        <strong>&#9888; No plates ingested.</strong><br/>
+        <span>${skipped.map(s => `${s.name}: ${s.reason}`).join('<br/>')}</span>
       </div>
     `;
-    if (typeof showToast === "function") {
-      showToast(`⚠️ ${err.message}`);
-    }
+    if (typeof showToast === "function") showToast("No plates ingested. Check the images are sacred iconography.");
     updateOcrPipelineStep(1);
+    return;
+  }
+
+  updateOcrPipelineStep(3);
+  setTimeout(() => updateOcrPipelineStep(4), 400);
+
+  stage.style.display = "block";
+  renderOcrBatchStrip();
+  showOcrPlate(0);
+
+  const approveBtn = document.getElementById("approveIngestBtn");
+  if (approveBtn) {
+    approveBtn.disabled = false;
+    const n = state.ocrPlates.length;
+    approveBtn.innerHTML = `<span><img src="assets/icons/pramana-check.svg" class="fmm-icon" alt="" /></span> ${n > 1 ? `Approve All ${n} Plates` : 'Approve'} &amp; Ingest into Knowledge Graph`;
+  }
+
+  const totalWords = state.ocrPlates.reduce((sum, p) => sum + (p.word_count || 0), 0);
+  uploadPrompt.innerHTML = `
+    <div style="display:flex; align-items:center; justify-content:center; gap:8px; color:var(--success); font-weight:700;">
+      <img src="assets/icons/pramana-check.svg" class="fmm-icon" style="width:16px; height:16px;" alt="" />
+      <span>Extraction complete (${state.ocrPlates.length} plate(s), ${totalWords} words recognized with IAST diacritic restoration)</span>
+    </div>
+    ${skipped.length ? `<div style="margin-top:8px; color:var(--danger); font-size:12px;">Skipped ${skipped.length}: ${skipped.map(s => s.name).join(', ')}</div>` : ''}
+  `;
+  if (typeof showToast === "function") {
+    showToast(`Ingested ${state.ocrPlates.length} plate(s)${skipped.length ? `, skipped ${skipped.length}` : ''}.`);
   }
 }
+
+// Renders the batch filmstrip of uploaded plates (shown when more than one plate).
+function renderOcrBatchStrip() {
+  const strip = document.getElementById("ocrBatchStrip");
+  const countBadge = document.getElementById("ocrBatchCountBadge");
+  const thumbs = document.getElementById("ocrBatchThumbnails");
+  const plates = state.ocrPlates || [];
+  if (!strip || !thumbs) return;
+  if (plates.length <= 1) { strip.style.display = "none"; return; }
+  strip.style.display = "block";
+  if (countBadge) countBadge.innerText = `${plates.length} plates`;
+  thumbs.innerHTML = plates.map((p, idx) => `
+    <div class="ocr-batch-thumb" onclick="showOcrPlate(${idx})" title="Plate ${idx + 1}"
+         style="flex:0 0 auto; width:58px; height:58px; border-radius:var(--radius-sm); overflow:hidden; cursor:pointer; outline:1px solid var(--line); position:relative;">
+      <img src="${formatImageUrl(p.image_url)}" onerror="this.src='/assets/shilpa_shastra_iconography.jpg';" style="width:100%; height:100%; object-fit:cover;" alt="Plate ${idx + 1}" />
+      <span style="position:absolute; bottom:0; right:0; background:rgba(0,0,0,0.6); color:#fff; font-size:9px; padding:1px 4px; border-top-left-radius:4px;">${idx + 1}</span>
+    </div>
+  `).join("");
+}
+
+// Shows a specific plate in the review pane. Aliases state.ocrResult to the current
+// plate so existing proposal edit/toggle/approve logic operates on it (edits persist).
+function showOcrPlate(i) {
+  const plates = state.ocrPlates || [];
+  if (!plates.length) return;
+  i = Math.max(0, Math.min(i, plates.length - 1));
+  state.ocrPlateIndex = i;
+  const plate = plates[i];
+  state.ocrResult = plate;
+
+  const previewImg = document.getElementById("ocrPreviewImg");
+  const rawTextEl = document.getElementById("ocrRawText");
+  const cleanedTextEl = document.getElementById("ocrCleanedText");
+  const storageUriEl = document.getElementById("ocrStorageUri");
+  const wordCountEl = document.getElementById("ocrCleanWordCount");
+  const plateBadge = document.getElementById("ocrPlateBadge");
+  const engineTag = document.getElementById("ocrEngineIndicatorTag");
+
+  if (previewImg) previewImg.src = formatImageUrl(plate.image_url);
+  if (rawTextEl) rawTextEl.innerText = plate.raw_ocr || "";
+  if (cleanedTextEl) cleanedTextEl.innerText = plate.cleaned_ocr || "";
+  if (storageUriEl) storageUriEl.innerText = plate.image_url || "";
+  if (wordCountEl) wordCountEl.innerText = `${plate.word_count || 0} words`;
+  if (engineTag && plate.engine_used) engineTag.innerText = plate.engine_used;
+  if (plateBadge) plateBadge.innerText = plates.length > 1 ? `Plate ${i + 1} of ${plates.length}` : `Plate ${i + 1}`;
+
+  renderProposals(plate.proposals);
+  updatePrecommitImpact(plate.proposals);
+
+  document.querySelectorAll("#ocrBatchThumbnails .ocr-batch-thumb").forEach((el, idx) => {
+    el.style.outline = idx === i ? "2px solid var(--accent)" : "1px solid var(--line)";
+  });
+  const prevBtn = document.getElementById("ocrPrevPlateBtn");
+  const nextBtn = document.getElementById("ocrNextPlateBtn");
+  const multi = plates.length > 1;
+  if (prevBtn) { prevBtn.style.display = multi ? "inline-flex" : "none"; prevBtn.disabled = i === 0; }
+  if (nextBtn) { nextBtn.style.display = multi ? "inline-flex" : "none"; nextBtn.disabled = i === plates.length - 1; }
+}
+window.showOcrPlate = showOcrPlate;
 
 function loadSampleSlide(slideType) {
   const stage = document.getElementById("ocrPreviewStage");
@@ -2044,39 +2305,95 @@ function updatePrecommitImpact(proposals) {
   }
 }
 
+// ---- Ingest progress overlay (shown while Approve / Approve All commits) ----
+function showIngestOverlay(title, sub) {
+  hideIngestOverlay();
+  const overlay = document.createElement("div");
+  overlay.id = "ingestProgressOverlay";
+  overlay.setAttribute("role", "status");
+  overlay.setAttribute("aria-live", "polite");
+  overlay.style.cssText = "position:fixed; inset:0; z-index:99999; display:flex; align-items:center; justify-content:center; background:rgba(20,14,8,0.55); backdrop-filter:blur(3px); animation:fadeIn 0.2s ease;";
+  overlay.innerHTML = `
+    <div style="background:var(--paper-card, #fdfaf5); border:1px solid var(--line, #e4d9c8); border-radius:var(--radius-lg, 14px); padding:34px 42px; min-width:320px; max-width:90vw; text-align:center; box-shadow:0 18px 50px rgba(0,0,0,0.30);">
+      <div style="width:60px; height:60px; margin:0 auto 18px;">
+        <img src="assets/icons/dharma-chakra.svg" class="fmm-icon spin-fast" style="width:60px; height:60px;" alt="Ingesting" />
+      </div>
+      <div id="ingestOverlayTitle" style="font-family:var(--font-serif, Georgia, serif); font-size:19px; font-weight:600; color:var(--ink, #2b2016); margin-bottom:6px;"></div>
+      <div id="ingestOverlaySub" style="font-size:13px; color:var(--muted, #8a7c68); line-height:1.5;"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+  updateIngestOverlay(title, sub);
+}
+
+function updateIngestOverlay(title, sub) {
+  const t = document.getElementById("ingestOverlayTitle");
+  const s = document.getElementById("ingestOverlaySub");
+  if (t && title != null) t.textContent = title;
+  if (s && sub != null) s.textContent = sub;
+}
+
+function hideIngestOverlay() {
+  const ex = document.getElementById("ingestProgressOverlay");
+  if (ex) ex.remove();
+}
+
 async function handleCuratorApproval() {
-  if (!state.ocrResult) return;
+  const plates = (state.ocrPlates && state.ocrPlates.length) ? state.ocrPlates : (state.ocrResult ? [state.ocrResult] : []);
+  if (!plates.length) return;
 
   updateOcrPipelineStep(5);
 
-  const approvedProposals = (state.ocrResult.proposals || []).filter(p => p.approved !== false);
-
   const targetStudy = (state.ocrStudies || []).find(s => s.id === state.selectedStudyId);
   const studyTitle = targetStudy ? targetStudy.title : "Curated Iconography Study";
+  const studyId = state.selectedStudyId || "s_ganesa_001";
+  const engine = state.selectedOcrEngine === "gemini_vision" ? "gemini-2.5-flash" : "windows_media_ocr";
 
-  const payload = {
-    study_id: state.selectedStudyId || "s_ganesa_001",
-    slide_number: null,
-    slide_title: state.ocrResult.slide_title || (state.ocrResult.image_url && state.ocrResult.image_url.includes("mudra") ? "Shikhara Mudra: Canonical Iconographic Hand Gesture" : `Curated Plate: ${studyTitle}`),
-    image_url: state.ocrResult.image_url,
-    raw_ocr: state.ocrResult.raw_ocr,
-    cleaned_ocr: state.ocrResult.cleaned_ocr,
-    approved_proposals: approvedProposals.map(p => ({
-      term_id: p.term_id,
-      canonical_name: p.canonical_name,
-      iast_name: p.iast_name,
-      category: p.category,
-      confidence: p.confidence,
-      evidence_snippet: p.evidence_snippet
-    })),
-    ocr_engine: state.ocrResult.engine_used || (state.selectedOcrEngine === "gemini_vision" ? "gemini-2.5-flash" : "windows_media_ocr")
-  };
+  const slides = plates.map((plate, idx) => {
+    const approvedProposals = (plate.proposals || []).filter(p => p.approved !== false);
+    const title = plate.slide_title || (plate.image_url && plate.image_url.includes("mudra")
+      ? "Shikhara Mudra: Canonical Iconographic Hand Gesture"
+      : `Curated Plate ${idx + 1}: ${studyTitle}`);
+    return {
+      study_id: studyId,
+      slide_number: idx + 1,
+      slide_title: title,
+      image_url: plate.image_url,
+      raw_ocr: plate.raw_ocr,
+      cleaned_ocr: plate.cleaned_ocr,
+      approved_proposals: approvedProposals.map(p => ({
+        term_id: p.term_id,
+        canonical_name: p.canonical_name,
+        iast_name: p.iast_name,
+        category: p.category,
+        confidence: p.confidence,
+        evidence_snippet: p.evidence_snippet
+      })),
+      ocr_engine: plate.engine_used || engine
+    };
+  });
+
+  const approveBtn = document.getElementById("approveIngestBtn");
+  if (approveBtn) {
+    approveBtn.disabled = true;
+    approveBtn.style.opacity = "0.55";
+    approveBtn.style.pointerEvents = "none";
+  }
+  const plateCount = slides.length;
+  showIngestOverlay(
+    `Ingesting ${plateCount} plate${plateCount > 1 ? "s" : ""} into the Knowledge Graph…`,
+    "Committing curated proposals across DuckDB · taxonomy · audit trail. Please hold."
+  );
 
   try {
-    const res = await fetch(`${API_BASE}/api/ocr/approve`, {
+    // Single plate -> /api/ocr/approve; multiple -> /api/ocr/approve-batch
+    const isBatch = slides.length > 1;
+    const url = isBatch ? `${API_BASE}/api/ocr/approve-batch` : `${API_BASE}/api/ocr/approve`;
+    const body = isBatch ? { slides } : slides[0];
+
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(body)
     });
 
     if (!res.ok) {
@@ -2106,6 +2423,13 @@ async function handleCuratorApproval() {
     console.error("Approval commit failed:", err);
     alert("Approval commit failed: " + err.message);
     updateOcrPipelineStep(4);
+  } finally {
+    hideIngestOverlay();
+    if (approveBtn) {
+      approveBtn.disabled = false;
+      approveBtn.style.opacity = "";
+      approveBtn.style.pointerEvents = "";
+    }
   }
 }
 
@@ -3177,11 +3501,28 @@ const HERO_SLIDES = [
   }
 ];
 
+async function loadLatestHeroSlides() {
+  try {
+    const res = await fetch(`${API_BASE}/api/hero-slides?limit=4`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const latest = (data && data.slides) || [];
+    if (latest.length === 0) return; // keep hardcoded fallback
+    HERO_SLIDES.splice(0, HERO_SLIDES.length, ...latest);
+    renderHeroSlide(0);
+  } catch (err) {
+    console.warn("Falling back to default hero slides:", err);
+  }
+}
+
 function initHeroCarousel() {
   const container = document.getElementById("heroCarouselContainer");
   if (!container) return;
 
   renderHeroSlide(0);
+
+  // Fetch the latest uploaded slides and refresh the carousel with them.
+  loadLatestHeroSlides();
 
   // Auto rotate every 6 seconds
   if (heroCarouselTimer) clearInterval(heroCarouselTimer);
@@ -3278,7 +3619,7 @@ function renderCollectionsGrid(filterTheme) {
 
   let filtered = loadedCollectionsData;
   if (filterTheme && filterTheme !== "all") {
-    filtered = loadedCollectionsData.filter(c => c.theme === filterTheme || c.title.includes(filterTheme));
+    filtered = loadedCollectionsData.filter(c => c.theme_tag === filterTheme || c.title.includes(filterTheme));
   }
 
   if (filtered.length === 0) {
@@ -3296,13 +3637,13 @@ function renderCollectionsGrid(filterTheme) {
     card.className = "collection-card";
     
     const isPublic = item.access_level === "public" || item.is_public;
-    const canAccess = item.user_can_access;
+    const canAccess = item.can_access;
 
     card.innerHTML = `
       <div class="col-card-img-wrap">
         <img src="${formatImageUrl(item.cover_image_url)}" alt="${sanitizeHTML(item.title)}" onerror="this.src='/assets/shilpa_shastra_iconography.jpg';" />
         <div class="col-card-badge-row">
-          <span class="col-theme-badge">${sanitizeHTML(item.theme || 'Iconography')}</span>
+          <span class="col-theme-badge">${sanitizeHTML(item.theme_tag || 'Iconography')}</span>
           ${isPublic 
             ? '<span class="col-access-badge public">✓ Public Study</span>'
             : '<span class="col-access-badge premium">🔒 Scholar Tier</span>'
@@ -3310,7 +3651,7 @@ function renderCollectionsGrid(filterTheme) {
         </div>
       </div>
       <div class="col-card-body">
-        <div class="col-card-meta">${item.plate_count || 1} Archival Plate${(item.plate_count || 1) > 1 ? 's' : ''} · ${sanitizeHTML(item.study_number || 'Study')}</div>
+        <div class="col-card-meta">${item.total_slides || 1} Archival Plate${(item.total_slides || 1) > 1 ? 's' : ''} · ${sanitizeHTML(item.study_number || 'Study')}</div>
         <h3 class="col-card-title">${sanitizeHTML(item.title)}</h3>
         <p class="col-card-sub">${sanitizeHTML(item.subtitle || '')}</p>
         <p class="col-card-desc">${sanitizeHTML(item.summary || '')}</p>
@@ -3330,12 +3671,12 @@ function renderCollectionsGrid(filterTheme) {
     const exploreBtn = card.querySelector(".explore-col-btn");
     exploreBtn.addEventListener("click", () => {
       if (canAccess) {
-        openStudyNotesModal(item.study_id);
+        openStudyNotesModal(item.id);
       } else {
         openSubscriptionGate({
-          study_id: item.study_id,
+          study_id: item.id,
           title: item.title,
-          total_slides: item.plate_count
+          total_slides: item.total_slides
         });
       }
     });
@@ -3343,7 +3684,7 @@ function renderCollectionsGrid(filterTheme) {
     const pdfBtn = card.querySelector(".col-pdf-btn");
     pdfBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      downloadStudyPdf(item.study_id);
+      downloadStudyPdf(item.id);
     });
 
     grid.appendChild(card);
@@ -3362,6 +3703,8 @@ window.filterCollections = function(theme) {
 // STUDY NOTES MODAL & OCR CORPUS CONTROLLER
 // ============================================================================
 let activeStudyNotesId = null;
+let activeStudySeriesId = null;
+let activeStudySeriesName = "";
 
 window.openStudyNotesModal = async function(studyId) {
   activeStudyNotesId = studyId;
@@ -3406,6 +3749,12 @@ window.openStudyNotesModal = async function(studyId) {
     if (titleEl) titleEl.textContent = `${study.title} · Notes & OCR Corpus`;
     if (abstractEl) abstractEl.textContent = study.summary_markdown || study.summary || study.subtitle || "Canonical study on South Indian Panchaloha sacred bronze iconography.";
 
+    // Enable "Full Series PDF" when this study belongs to a series
+    activeStudySeriesId = study.series_id || null;
+    activeStudySeriesName = study.series_name || "";
+    const seriesBtn = document.getElementById("studyNotesSeriesBtn");
+    if (seriesBtn) seriesBtn.style.display = activeStudySeriesId ? "inline-flex" : "none";
+
     // Assemble full curated approved OCR Corpus from all slides
     let corpusText = "";
     if (study.slides && study.slides.length > 0) {
@@ -3419,6 +3768,17 @@ window.openStudyNotesModal = async function(studyId) {
     }
 
     if (ocrCorpusEl) ocrCorpusEl.textContent = corpusText;
+
+    // Preview / upgrade banner when the backend returned a limited preview subset.
+    if (study.is_premium_locked) {
+      const shown = study.preview_count || (study.slides ? study.slides.length : 0);
+      const total = study.total_slides || shown;
+      const note = study.trial_limit_reached
+        ? `Free trial study limit reached. Previewing ${shown} of ${total} plates. Upgrade to Student (\u20b9350/mo) or Scholar (\u20b9750/mo) for full access.`
+        : `Preview only: showing ${shown} of ${total} plates. Upgrade to Student (\u20b9350/mo) or Scholar (\u20b9750/mo) to view all plates and OCR.`;
+      if (abstractEl) abstractEl.textContent = note;
+      if (ocrCorpusEl) ocrCorpusEl.textContent = "*** " + note + " ***\n\n" + corpusText;
+    }
 
     // Controlled Taxonomy tags
     if (taxonomyGrid) {
@@ -3465,6 +3825,14 @@ window.handleStudyNotesPdfDownload = function() {
   }
 };
 
+window.handleStudyNotesSeriesDownload = function() {
+  if (activeStudySeriesId) {
+    downloadSeriesPdf(activeStudySeriesId, activeStudySeriesName);
+  } else {
+    alert("This study is not linked to a series.");
+  }
+};
+
 // ============================================================================
 // PDF GENERATION & DOWNLOAD CONTROLLER (Default Action & Trial Limit Enforcement)
 // ============================================================================
@@ -3475,7 +3843,7 @@ window.downloadStudyPdf = async function(studyId) {
   }
 
   if (typeof showToast === "function") {
-    showToast("Generating research-grade PDF with 300 DPI plates & epigraphy...");
+    showToast("Preparing image PDF (one plate per page)...");
   }
 
   try {
@@ -3483,7 +3851,7 @@ window.downloadStudyPdf = async function(studyId) {
     
     if (res.status === 403) {
       const errData = await res.json().catch(() => ({}));
-      const msg = errData.detail || "Free trial download limit reached (1 research PDF included). Upgrade to Student (₹350/mo) or Scholar (₹750/mo) for unlimited downloads.";
+      const msg = errData.detail || "Free trial download limit reached. Upgrade to Student (₹350/mo) or Scholar (₹750/mo) for unlimited downloads.";
       
       // Open Subscription Gate or Alert
       alert(`Download Limit Notice:\n\n${msg}`);
@@ -3512,6 +3880,52 @@ window.downloadStudyPdf = async function(studyId) {
   } catch (err) {
     console.error("PDF download error:", err);
     alert(`PDF Download Error:\n${err.message}`);
+  }
+};
+
+window.downloadSeriesPdf = async function(seriesId, seriesName) {
+  if (!seriesId) {
+    alert("Please select a series to download.");
+    return;
+  }
+
+  if (typeof showToast === "function") {
+    showToast("Preparing full-series image PDF (all plates, one per page)...");
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/series/${seriesId}/pdf`);
+
+    if (res.status === 403) {
+      const errData = await res.json().catch(() => ({}));
+      const msg = errData.detail || "Full-series export is available to Student (\u20b9350/mo) or Scholar (\u20b9750/mo) members.";
+      alert(`Series Download Notice:\n\n${msg}`);
+      switchTab("member");
+      return;
+    }
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || `Server returned error ${res.status}`);
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const safe = (seriesName || "series").replace(/[^a-z0-9]+/gi, "_").toLowerCase();
+    a.download = `FMM_Series_${safe}_plates.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    if (typeof showToast === "function") {
+      showToast("Download Complete: Full-series image PDF saved!");
+    }
+  } catch (err) {
+    console.error("Series PDF download error:", err);
+    alert(`Series PDF Download Error:\n${err.message}`);
   }
 };
 
@@ -5148,25 +5562,30 @@ function updateErDiagramCounts(telemetry) {
 // RAZORPAY INTEGRATION
 // ============================================================================
 
-async function initiateRazorpayPayment() {
+async function initiateRazorpayPayment(tier = "scholar") {
   if (!state.currentUser || !state.currentUser.id) {
     sessionStorage.setItem("fmm_pending_razorpay", "true");
-    alert("Please sign in first to upgrade to Scholar Pro.");
+    alert("Please sign in first to upgrade your membership.");
     openAuthModal();
     return;
   }
-  
+
+  const isStudent = String(tier).toLowerCase() === "student";
+  const tierLabel = isStudent ? "Student" : "Scholar";
+
   const btn = document.getElementById("gateModalPayBtn");
   if (btn) btn.innerHTML = `<span><img src="assets/icons/padma-scholar.svg" class="fmm-icon" alt="" /></span> Processing...`;
 
   try {
-    // 1. Create Order on Backend
+    // 1. Create Order on Backend (tier-aware: student ₹350 requires prior approval)
     const response = await fetch(`${API_BASE}/api/payment/create-order`, {
-      method: "POST"
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tier })
     });
     
     if (!response.ok) {
-      const err = await response.json();
+      const err = await response.json().catch(() => ({}));
       throw new Error(err.detail || "Failed to create order");
     }
     
@@ -5178,7 +5597,7 @@ async function initiateRazorpayPayment() {
       amount: orderData.amount, 
       currency: orderData.currency,
       name: "Five Metal Masonry",
-      description: "Scholar Pro Upgrade",
+      description: `${tierLabel} Membership Upgrade`,
       image: "assets/icons/5mm_website_logo.avif",
       order_id: orderData.order_id,
       handler: async function (response) {
@@ -5192,7 +5611,8 @@ async function initiateRazorpayPayment() {
             body: JSON.stringify({
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_order_id: response.razorpay_order_id,
-              razorpay_signature: response.razorpay_signature
+              razorpay_signature: response.razorpay_signature,
+              tier: tier
             })
           });
           
@@ -5200,7 +5620,7 @@ async function initiateRazorpayPayment() {
             throw new Error("Payment verification failed");
           }
           
-          alert("Payment Successful! Welcome to Scholar Pro.");
+          alert(`Payment Successful! Welcome to ${tierLabel} membership.`);
           closeModal("subscriptionGateModal");
           // Refresh user session state
           await checkSession();
@@ -5231,6 +5651,6 @@ async function initiateRazorpayPayment() {
     console.error("Payment initiation error:", error);
     alert("Could not start payment process: " + error.message);
   } finally {
-    if (btn) btn.innerHTML = `<span><img src="assets/icons/padma-scholar.svg" class="fmm-icon" alt="" /></span> Upgrade to Scholar Pro (₹499/yr)`;
+    if (btn) btn.innerHTML = `<span><img src="assets/icons/padma-scholar.svg" class="fmm-icon" alt="" /></span> Upgrade to ${tierLabel}`;
   }
 }

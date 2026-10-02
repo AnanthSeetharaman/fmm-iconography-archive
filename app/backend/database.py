@@ -17,6 +17,21 @@ def get_db():
             pass
     return conn
 
+def get_param(conn, key, default=None):
+    """Reads a single param_config value using an EXISTING connection.
+
+    Reusing the caller's connection avoids DuckDB same-process file-lock
+    conflicts that occur when a second connection is opened mid-request.
+    Returns the raw string value or `default` if missing.
+    """
+    try:
+        row = conn.execute(
+            "SELECT param_value FROM param_config WHERE param_key = ? LIMIT 1", (key,)
+        ).fetchone()
+        return row[0] if row and row[0] is not None else default
+    except Exception:
+        return default
+
 def init_duckdb_schema():
     """
     Initializes all DuckDB tables, indexes, and initial reference data.
@@ -432,12 +447,48 @@ def seed_param_config(conn):
     """Seeds default application configuration parameters."""
     count = conn.execute("SELECT COUNT(*) FROM param_config").fetchone()[0]
     if count > 0:
-        # Update existing parameters with new pricing/trial rules if present
+        # One-time repair/backfill of legacy config WITHOUT clobbering admin-edited values.
         try:
-            conn.execute("UPDATE param_config SET param_value = '15' WHERE param_key = 'trial_duration_days';")
-            conn.execute("UPDATE param_config SET param_value = '750' WHERE param_key = 'scholar_monthly_inr';")
-            conn.execute("UPDATE param_config SET param_value = '350' WHERE param_key = 'student_monthly_inr';")
-            conn.execute("UPDATE param_config SET param_value = '1' WHERE param_key = 'trial_download_limit';")
+            import uuid as _uuid
+            # Legacy seed inserted two 'trial_duration_days' rows (15 and 30) and an
+            # older startup path force-reset it to 15. Collapse duplicates to a single
+            # canonical 30-day value. Runs only while duplicates exist.
+            dup = conn.execute(
+                "SELECT COUNT(*) FROM param_config WHERE param_key = 'trial_duration_days'"
+            ).fetchone()[0]
+            if dup and dup > 1:
+                conn.execute("""
+                    DELETE FROM param_config
+                    WHERE param_key = 'trial_duration_days'
+                      AND id NOT IN (
+                          SELECT id FROM param_config WHERE param_key = 'trial_duration_days' LIMIT 1
+                      );
+                """)
+                conn.execute("UPDATE param_config SET param_value = '30' WHERE param_key = 'trial_duration_days';")
+
+            # Backfill canonical config keys for DBs seeded before they existed.
+            # Only MISSING keys are inserted, so any admin-edited value is preserved.
+            # Tuples: (param_group, param_key, param_value, value_type, description)
+            required = [
+                ("pricing", "student_monthly_inr", "350", "number", "Monthly Student membership price in INR (requires ID review)"),
+                ("pricing", "scholar_monthly_inr", "750", "number", "Monthly Scholar membership price in INR (instant access)"),
+                ("pricing", "trial_duration_days", "30", "number", "Duration of free trial membership in days (default 30)"),
+                ("pricing", "trial_download_limit", "1", "number", "Maximum PDF downloads allowed during free trial"),
+                ("pricing", "trial_study_limit", "3", "number", "Max distinct premium studies viewable during the free trial"),
+                ("features", "guest_slide_preview_count", "2", "number", "Number of slide previews shown to guests for premium studies"),
+                ("features", "guest_slide_preview_mode", "latest", "string", "Which slides guests preview on premium studies: 'first' or 'latest'"),
+            ]
+            for group, key, val, vtype, desc in required:
+                present = conn.execute(
+                    "SELECT COUNT(*) FROM param_config WHERE param_key = ?", (key,)
+                ).fetchone()[0]
+                if not present:
+                    conn.execute(
+                        "INSERT INTO param_config (id, param_group, param_key, param_value, value_type, description, is_sensitive) "
+                        "VALUES (?, ?, ?, ?, ?, ?, FALSE);",
+                        (str(_uuid.uuid4())[:8], group, key, val, vtype, desc)
+                    )
+            conn.commit()
         except Exception:
             pass
         return
@@ -449,20 +500,21 @@ def seed_param_config(conn):
         ("pricing", "scholar_monthly_inr", "750", "number", "Monthly Scholar membership price in INR (instant access)", False),
         ("pricing", "scholar_pro_annual_inr", "750", "number", "Monthly Scholar membership price in INR", False),
         ("pricing", "study_license_inr", "199", "number", "Individual study license price in INR", False),
-        ("pricing", "trial_duration_days", "15", "number", "Duration of free trial membership in days", False),
+        ("pricing", "trial_duration_days", "30", "number", "Duration of free trial membership in days (default 30)", False),
         ("pricing", "trial_download_limit", "1", "number", "Maximum PDF downloads allowed during free trial", False),
+        ("pricing", "trial_study_limit", "3", "number", "Max distinct premium studies viewable during the free trial", False),
         ("pricing", "currency_code", "INR", "string", "Default currency code", False),
         ("pricing", "payment_gateway", "gpay", "string", "Primary payment gateway (gpay, razorpay, stripe)", False),
 
         # Feature Toggles
         ("features", "guest_ocr_snippets", "hidden", "string", "OCR snippet visibility for guests: visible, hidden, truncated", False),
         ("features", "guest_slide_preview_count", "2", "number", "Number of slide previews shown to guests for premium studies", False),
+        ("features", "guest_slide_preview_mode", "latest", "string", "Which slides guests preview on premium studies: 'first' or 'latest'", False),
         ("features", "enable_drm_protection", "true", "boolean", "Enable right-click and drag protection on archival plates", False),
         ("features", "enable_watermark", "true", "boolean", "Show watermark overlay on plate images", False),
         ("features", "enable_demo_login", "true", "boolean", "Enable demo login buttons (disable in production)", False),
         ("features", "enable_google_oauth", "true", "boolean", "Enable Google OAuth sign-in", False),
-        ("features", "enable_trial_on_google_sso", "true", "boolean", "Auto-provision 30-day Scholar Pro trial on Google SSO sign-in", False),
-        ("pricing", "trial_duration_days", "30", "number", "Duration of free trial membership in days", False),
+        ("features", "enable_trial_on_google_sso", "true", "boolean", "Auto-provision free trial on Google SSO sign-in (duration from trial_duration_days)", False),
 
         # Search & Retrieval
         ("search", "default_result_limit", "20", "number", "Default number of search results per page", False),

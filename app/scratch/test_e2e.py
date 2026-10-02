@@ -40,7 +40,7 @@ def test_all():
     print(f"   ✓ Signed in as test student: {user['email']}")
 
     dummy_pdf = io.BytesIO(b"%PDF-1.4 dummy test student id proof content")
-    files = {"id_proof_file": ("student_id.pdf", dummy_pdf, "application/pdf")}
+    files = {"proof_file": ("student_id.pdf", dummy_pdf, "application/pdf")}
     data = {"institution_name": "Madras Sanskrit College"}
     apply_res = s.post(f"{BASE_URL}/api/membership/student-apply", data=data, files=files)
     assert apply_res.status_code == 200, f"Student apply failed: {apply_res.status_code} {apply_res.text}"
@@ -60,7 +60,7 @@ def test_all():
     apps = queue_res.json().get("applications", [])
     print(f"   ✓ Retrieved {len(apps)} pending applications in queue")
 
-    # Review & approve application
+    # Review & approve application (approval verifies eligibility; activation happens on payment)
     review_res = s.post(f"{BASE_URL}/api/admin/student-applications/{sub_id}/review", json={"action": "approve"})
     assert review_res.status_code == 200
     print(f"   ✓ Approved student application: {review_res.json().get('message')}")

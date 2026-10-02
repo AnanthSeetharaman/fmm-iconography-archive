@@ -6,9 +6,9 @@ razorpay_client = None
 if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
     razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 
-def create_subscription_order(amount_inr: float, user_id: str) -> dict:
+def create_subscription_order(amount_inr: float, user_id: str, tier: str = "scholar_pro") -> dict:
     """
-    Creates a Razorpay order for a Scholar Pro subscription.
+    Creates a Razorpay order for a membership subscription (Student or Scholar).
     Amount should be in INR (rupees).
     """
     if not razorpay_client:
@@ -20,10 +20,10 @@ def create_subscription_order(amount_inr: float, user_id: str) -> dict:
     order_data = {
         "amount": amount_paise,
         "currency": "INR",
-        "receipt": f"receipt_{user_id}_{int(amount_inr)}",
+        "receipt": f"receipt_{user_id}_{tier}_{int(amount_inr)}",
         "notes": {
             "user_id": user_id,
-            "tier": "scholar_pro"
+            "tier": tier
         }
     }
     
