@@ -1770,12 +1770,7 @@ async function handleFileUpload(fileOrFiles) {
   const engine = state.selectedOcrEngine || "gemini_vision";
   const engineLabel = engine === "gemini_vision" ? "Gemini Vision Model (gemini-2.5-flash)" : "Windows Native OCR (Windows.Media.Ocr)";
 
-  uploadPrompt.innerHTML = `
-    <div style="display:flex; align-items:center; justify-content:center; gap:10px; color:var(--accent); font-weight:700; padding:10px;">
-      <img src="assets/icons/dharma-chakra.svg" class="fmm-icon rotating-chakra" style="width:20px; height:20px;" alt="" />
-      <span>Executing ${engineLabel} on ${files.length} plate${files.length > 1 ? 's' : ''} &amp; Sanskrit IAST Processing...</span>
-    </div>
-  `;
+  if (uploadPrompt) uploadPrompt.innerHTML = "";
 
   // Upload plates with bounded concurrency + a Cancel control. Results are indexed
   // by file position so plate order (and slide numbers / grouping) stays in file order.
@@ -1790,23 +1785,17 @@ async function handleFileUpload(fileOrFiles) {
   let cancelled = false;
   const CONCURRENCY = Math.min(4, files.length);
 
-  const renderProgress = () => {
-    uploadPrompt.innerHTML = `
-      <div style="display:flex; flex-direction:column; align-items:center; gap:10px; padding:10px;">
-        <div style="display:flex; align-items:center; justify-content:center; gap:10px; color:var(--accent); font-weight:700;">
-          <img src="assets/icons/dharma-chakra.svg" class="fmm-icon rotating-chakra" style="width:20px; height:20px;" alt="" />
-          <span>Processing ${completed} of ${files.length} &middot; ${engineLabel}&hellip;</span>
-        </div>
-        <button type="button" id="ocrCancelUploadBtn" style="font-size:12px; padding:6px 16px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--paper-card); color:var(--ink); cursor:pointer;">Cancel</button>
-      </div>`;
-    const cb = document.getElementById("ocrCancelUploadBtn");
-    if (cb) cb.onclick = () => {
-      cancelled = true;
-      controllers.forEach(c => { try { c.abort(); } catch (e) {} });
-      cb.disabled = true;
-      cb.innerText = "Cancelling\u2026";
-    };
+  // Progress + Cancel now live in the processing modal.
+  const procCancelBtn = document.getElementById("ocrProcCancelBtn");
+  const doCancel = () => {
+    cancelled = true;
+    controllers.forEach(c => { try { c.abort(); } catch (e) {} });
+    if (procCancelBtn) { procCancelBtn.disabled = true; procCancelBtn.innerText = "Cancelling\u2026"; }
   };
+  if (procCancelBtn) procCancelBtn.onclick = doCancel;
+
+  const renderProgress = () => updateOcrProcessingModal({ completed, total: files.length, phase: "Extracting OCR text\u2026" });
+  openOcrProcessingModal(files.length);
 
   const worker = async () => {
     while (true) {
@@ -1860,6 +1849,7 @@ async function handleFileUpload(fileOrFiles) {
   });
 
   if (state.ocrPlates.length === 0) {
+    closeOcrProcessingModal();
     stage.style.display = "none";
     if (cancelled) {
       uploadPrompt.innerHTML = `
@@ -1885,9 +1875,10 @@ async function handleFileUpload(fileOrFiles) {
   setTimeout(() => updateOcrPipelineStep(4), 400);
 
   stage.style.display = "block";
-  renderOcrBatchStrip();
   showOcrPlate(0);
-  inferStudyGroups();
+  updateOcrProcessingModal({ completed: files.length, total: files.length, phase: "Inferring study grouping\u2026" });
+  await inferStudyGroups();
+  closeOcrProcessingModal();
 
   const approveBtn = document.getElementById("approveIngestBtn");
   if (approveBtn) {
@@ -1958,8 +1949,11 @@ function showOcrPlate(i) {
   updatePrecommitImpact(plate.proposals);
   updateOcrInferredStudy(i);
 
-  document.querySelectorAll("#ocrBatchThumbnails .ocr-batch-thumb").forEach((el, idx) => {
-    el.style.outline = idx === i ? "2px solid var(--accent)" : "1px solid var(--line)";
+  const pubToggle = document.getElementById("ocrDetailPublicToggle");
+  if (pubToggle) pubToggle.checked = !!(plate.is_public);
+
+  document.querySelectorAll("#ocrStudyRail .ocr-plate-row").forEach(el => {
+    el.classList.toggle("selected", String(el.dataset.plateIdx) === String(i));
   });
   const prevBtn = document.getElementById("ocrPrevPlateBtn");
   const nextBtn = document.getElementById("ocrNextPlateBtn");
@@ -1982,7 +1976,7 @@ function updateOcrInferredStudy(i) {
   }
   const g = groups.find(x => (x.plate_indices || []).includes(i));
   if (!g) {
-    el.innerHTML = `<span style="color:var(--muted);">unassigned &mdash; drag into a study in the grouping panel</span>`;
+    el.innerHTML = `<span style="color:var(--muted);">unassigned &mdash; move it into a study in the left rail</span>`;
     return;
   }
   const title = escapeHtml(g.study_title || "Untitled Study");
@@ -2000,6 +1994,68 @@ function updateOcrInferredStudy(i) {
 }
 window.updateOcrInferredStudy = updateOcrInferredStudy;
 
+// Detail-pane tab switching (Cleaned / Raw / Proposals).
+function ocrSwitchTab(which) {
+  const map = { clean: "ocrPanelClean", raw: "ocrPanelRaw", props: "ocrPanelProps" };
+  const btnMap = { clean: "ocrTabCleanBtn", raw: "ocrTabRawBtn", props: "ocrTabPropsBtn" };
+  Object.keys(map).forEach(k => {
+    const panel = document.getElementById(map[k]);
+    const btn = document.getElementById(btnMap[k]);
+    if (panel) panel.style.display = (k === which) ? "block" : "none";
+    if (btn) btn.classList.toggle("active", k === which);
+  });
+}
+window.ocrSwitchTab = ocrSwitchTab;
+
+// Full-size plate lightbox.
+function openOcrLightbox() {
+  const box = document.getElementById("ocrLightbox");
+  const img = document.getElementById("ocrLightboxImg");
+  const src = document.getElementById("ocrPreviewImg");
+  if (!box || !img || !src || !src.src) return;
+  img.src = src.src;
+  box.style.display = "flex";
+}
+function closeOcrLightbox() {
+  const box = document.getElementById("ocrLightbox");
+  if (box) box.style.display = "none";
+}
+window.openOcrLightbox = openOcrLightbox;
+window.closeOcrLightbox = closeOcrLightbox;
+
+// ---------------------------------------------------------------------------
+// Processing progress modal (OCR extraction + grouping inference)
+// ---------------------------------------------------------------------------
+function openOcrProcessingModal(total) {
+  const m = document.getElementById("ocrProcessingModal");
+  if (!m) return;
+  const cancel = document.getElementById("ocrProcCancelBtn");
+  if (cancel) { cancel.disabled = false; cancel.innerText = "Cancel"; }
+  updateOcrProcessingModal({ completed: 0, total: total || 0, phase: "Extracting OCR text\u2026" });
+  m.classList.add("active");
+}
+function updateOcrProcessingModal({ completed, total, phase, file } = {}) {
+  const bar = document.getElementById("ocrProcModalBar");
+  const countEl = document.getElementById("ocrProcModalCount");
+  const pctEl = document.getElementById("ocrProcModalPct");
+  const phaseEl = document.getElementById("ocrProcModalPhase");
+  const fileEl = document.getElementById("ocrProcModalFile");
+  const t = total || 0;
+  if (typeof completed === "number" && countEl) countEl.innerText = `${completed} of ${t}`;
+  const pct = t > 0 && typeof completed === "number" ? Math.round((completed / t) * 100) : 0;
+  if (bar && typeof completed === "number") bar.style.width = `${pct}%`;
+  if (pctEl && typeof completed === "number") pctEl.innerText = `${pct}%`;
+  if (phase && phaseEl) phaseEl.innerText = phase;
+  if (fileEl && file !== undefined) fileEl.innerText = file || "";
+}
+function closeOcrProcessingModal() {
+  const m = document.getElementById("ocrProcessingModal");
+  if (m) m.classList.remove("active");
+}
+window.openOcrProcessingModal = openOcrProcessingModal;
+window.updateOcrProcessingModal = updateOcrProcessingModal;
+window.closeOcrProcessingModal = closeOcrProcessingModal;
+
 // ---------------------------------------------------------------------------
 // Study grouping (multi-study bulk split + per-plate public selection)
 // ---------------------------------------------------------------------------
@@ -2009,8 +2065,7 @@ function _ocrSlugify(s) {
 
 async function inferStudyGroups() {
   const plates = state.ocrPlates || [];
-  const panel = document.getElementById("ocrGroupPanel");
-  if (!plates.length) { if (panel) panel.style.display = "none"; return; }
+  if (!plates.length) return;
 
   const buildFallback = () => {
     plates.forEach(p => { if (p.is_public === undefined) p.is_public = false; });
@@ -2024,11 +2079,6 @@ async function inferStudyGroups() {
       plate_indices: plates.map((_, i) => i)
     }];
   };
-
-  if (panel) {
-    panel.style.display = "block";
-    panel.innerHTML = `<div style="padding:12px; color:var(--muted); font-size:13px;"><img src="assets/icons/dharma-chakra.svg" class="fmm-icon spin-fast" style="width:16px;height:16px;vertical-align:middle;" alt="" /> Inferring study grouping from plate headers&hellip;</div>`;
-  }
 
   try {
     const payload = {
@@ -2065,7 +2115,7 @@ async function inferStudyGroups() {
     state.ocrInferEngine = "unavailable";
     buildFallback();
   }
-  renderOcrGroups();
+  renderOcrWorkbench();
 }
 
 function ocrFindGroupOfPlate(idx) {
@@ -2089,22 +2139,22 @@ function ocrMovePlate(idx, targetGid) {
     });
   } else {
     const tgt = (state.ocrGroups || []).find(x => x.gid === targetGid);
-    if (!tgt || tgt === src) { renderOcrGroups(); return; }
+    if (!tgt || tgt === src) { renderOcrWorkbench(); return; }
     src.plate_indices = src.plate_indices.filter(i => i !== idx);
     tgt.plate_indices.push(idx);
   }
   state.ocrGroups = state.ocrGroups.filter(g => g.plate_indices.length > 0);
-  renderOcrGroups();
+  renderOcrWorkbench();
 }
 
 function ocrMergeGroup(gid, targetGid) {
-  if (!targetGid || gid === targetGid) { renderOcrGroups(); return; }
+  if (!targetGid || gid === targetGid) { renderOcrWorkbench(); return; }
   const src = (state.ocrGroups || []).find(x => x.gid === gid);
   const tgt = (state.ocrGroups || []).find(x => x.gid === targetGid);
   if (!src || !tgt) return;
   tgt.plate_indices.push(...src.plate_indices);
   state.ocrGroups = state.ocrGroups.filter(g => g !== src);
-  renderOcrGroups();
+  renderOcrWorkbench();
 }
 window.ocrRenameGroup = ocrRenameGroup;
 window.ocrSetGroupNumber = ocrSetGroupNumber;
@@ -2113,74 +2163,80 @@ window.ocrTogglePlatePublic = ocrTogglePlatePublic;
 window.ocrMovePlate = ocrMovePlate;
 window.ocrMergeGroup = ocrMergeGroup;
 
-function renderOcrGroups() {
-  const panel = document.getElementById("ocrGroupPanel");
+function renderOcrWorkbench() {
+  const rail = document.getElementById("ocrStudyRail");
   const groups = state.ocrGroups || [];
   const plates = state.ocrPlates || [];
-  if (!panel) return;
-  if (groups.length <= 0 || plates.length <= 1) { panel.style.display = "none"; return; }
-  panel.style.display = "block";
+  if (!rail) return;
+  if (!groups.length || !plates.length) { rail.innerHTML = ""; return; }
 
   const engine = state.ocrInferEngine || "heuristic";
   const engineBadge = engine === "gemini" ? "Gemini" : (engine === "unavailable" ? "offline (manual)" : "heuristic fallback");
+  const sel = state.ocrPlateIndex || 0;
   const groupOptions = (currentGid) => groups.filter(g => g.gid !== currentGid)
-    .map(g => `<option value="${g.gid}">${(g.study_title || g.gid).replace(/"/g, "&quot;")}</option>`).join("");
+    .map(g => `<option value="${g.gid}">${escapeHtml(g.study_title || g.gid)}</option>`).join("");
 
-  const groupsHtml = groups.map(g => {
+  const cards = groups.map(g => {
     const idxs = g.plate_indices.slice().sort((a, b) => a - b);
-    const platesHtml = idxs.map(idx => {
+    const moveOptsFor = () => groups.map(gg => `<option value="${gg.gid}" ${gg.gid === g.gid ? "selected" : ""}>${escapeHtml(gg.study_number || gg.gid)}</option>`).join("") + `<option value="__new__">+ New study</option>`;
+    const rows = idxs.map(idx => {
       const p = plates[idx]; if (!p) return "";
-      const moveOpts = groups.map(gg => `<option value="${gg.gid}" ${gg.gid === g.gid ? "selected" : ""}>${(gg.study_number || gg.gid)}</option>`).join("") + `<option value="__new__">+ New study</option>`;
       return `
-        <div class="ocr-group-plate" style="flex:0 0 auto; width:132px; border:1px solid var(--line); border-radius:var(--radius-sm); padding:6px; background:var(--paper-card);">
-          <div style="position:relative; width:100%; height:84px; border-radius:4px; overflow:hidden; cursor:pointer;" onclick="showOcrPlate(${idx})" title="Open plate ${idx + 1} for OCR review">
-            <img src="${formatImageUrl(p.image_url)}" onerror="this.src='/assets/shilpa_shastra_iconography.jpg';" style="width:100%; height:100%; object-fit:cover;" alt="Plate ${idx + 1}" />
-            <span style="position:absolute; bottom:0; right:0; background:rgba(0,0,0,0.6); color:#fff; font-size:9px; padding:1px 4px; border-top-left-radius:4px;">${idx + 1}</span>
+        <div class="ocr-plate-row ${idx === sel ? "selected" : ""}" data-plate-idx="${idx}" onclick="showOcrPlate(${idx})" title="Review plate ${idx + 1}">
+          <img class="ocr-plate-row-thumb" src="${formatImageUrl(p.image_url)}" onerror="this.src='/assets/shilpa_shastra_iconography.jpg';" alt="Plate ${idx + 1}" />
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:12px; font-weight:700; color:var(--ink);">Plate ${idx + 1}</div>
+            <div style="font-size:10.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(p.slide_title || "")}</div>
           </div>
-          <label style="display:flex; align-items:center; gap:5px; font-size:11px; margin-top:5px; cursor:pointer; color:var(--ink);">
-            <input type="checkbox" ${p.is_public ? "checked" : ""} onchange="ocrTogglePlatePublic(${idx}, this.checked)" /> Public
+          <label class="ocr-pub-toggle" style="font-size:10.5px;" onclick="event.stopPropagation();">
+            <input type="checkbox" ${p.is_public ? "checked" : ""} onchange="ocrTogglePlatePublic(${idx}, this.checked); renderOcrWorkbench();" /> Pub
           </label>
-          <select onchange="ocrMovePlate(${idx}, this.value)" title="Move plate to another study" style="width:100%; margin-top:4px; font-size:10px; padding:2px 4px; border:1px solid var(--line); border-radius:4px; background:var(--paper-sunken); color:var(--ink);">
-            ${moveOpts}
+          <select onclick="event.stopPropagation();" onchange="ocrMovePlate(${idx}, this.value)" title="Move plate to another study" style="font-size:10px; padding:2px 4px; border:1px solid var(--line); border-radius:4px; background:var(--paper-sunken); color:var(--ink); max-width:72px;">
+            ${moveOptsFor()}
           </select>
         </div>`;
     }).join("");
 
-    const attachedBadge = g.study_id ? `<span class="badge" style="background:rgba(16,185,129,0.14); color:var(--success); font-size:10px;">attaches to existing</span>` : `<span class="badge" style="background:rgba(181,139,75,0.14); color:var(--accent); font-size:10px;">new study</span>`;
-    const frontBadge = g.is_front_matter ? `<span class="badge" style="background:rgba(99,102,241,0.14); color:#6366f1; font-size:10px;">front matter</span>` : "";
-    const mergeSel = groups.length > 1 ? `<select onchange="ocrMergeGroup('${g.gid}', this.value); this.selectedIndex=0;" title="Merge this study into another" style="font-size:10px; padding:3px 6px; border:1px solid var(--line); border-radius:4px; background:var(--paper-sunken); color:var(--ink);"><option value="">Merge into&hellip;</option>${groupOptions(g.gid)}</select>` : "";
+    const attachedBadge = g.study_id ? `<span class="badge" style="background:rgba(16,185,129,0.14); color:var(--success); font-size:9.5px;">existing</span>` : `<span class="badge" style="background:rgba(181,139,75,0.14); color:var(--accent); font-size:9.5px;">new</span>`;
+    const frontBadge = g.is_front_matter ? `<span class="badge" style="background:rgba(99,102,241,0.14); color:#6366f1; font-size:9.5px;">front matter</span>` : "";
+    const mergeSel = groups.length > 1 ? `<select onchange="ocrMergeGroup('${g.gid}', this.value); this.selectedIndex=0;" title="Merge this study into another" style="font-size:10px; padding:3px 6px; border:1px solid var(--line); border-radius:4px; background:var(--paper); color:var(--ink);"><option value="">Merge into&hellip;</option>${groupOptions(g.gid)}</select>` : "";
+    const pubInStudy = idxs.filter(i => plates[i] && plates[i].is_public).length;
 
     return `
-      <div class="ocr-group-card" style="border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px; margin-bottom:10px; background:var(--paper-sunken);">
-        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px;">
-          <input value="${(g.study_number || "").replace(/"/g, "&quot;")}" onchange="ocrSetGroupNumber('${g.gid}', this.value)" title="Study number" style="width:90px; font-size:12px; padding:4px 6px; border:1px solid var(--line); border-radius:4px; background:var(--paper-card); color:var(--ink);" />
-          <input value="${(g.study_title || "").replace(/"/g, "&quot;")}" onchange="ocrRenameGroup('${g.gid}', this.value)" title="Study title" style="flex:1 1 220px; font-size:13px; font-weight:600; padding:4px 8px; border:1px solid var(--line); border-radius:4px; background:var(--paper-card); color:var(--ink);" />
-          <select onchange="ocrSetGroupAccess('${g.gid}', this.value)" title="Access level for new study" ${g.study_id ? "disabled" : ""} style="font-size:11px; padding:4px 6px; border:1px solid var(--line); border-radius:4px; background:var(--paper-card); color:var(--ink);">
-            <option value="member_only" ${g.access_level === "member_only" ? "selected" : ""}>Member-only</option>
-            <option value="public" ${g.access_level === "public" ? "selected" : ""}>Public</option>
-          </select>
-          ${attachedBadge} ${frontBadge} ${mergeSel}
-          <span class="badge" style="background:var(--paper-card); font-size:10px; color:var(--muted);">${idxs.length} plate(s)</span>
+      <div class="ocr-study-card">
+        <div class="ocr-study-card-head">
+          <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px; flex-wrap:wrap;">
+            <input value="${escapeHtml(g.study_number || "")}" onchange="ocrSetGroupNumber('${g.gid}', this.value)" title="Study number" style="width:78px; font-size:11px; padding:4px 6px; border:1px solid var(--line); border-radius:4px; background:var(--paper); color:var(--ink);" />
+            ${attachedBadge} ${frontBadge}
+          </div>
+          <input value="${escapeHtml(g.study_title || "")}" onchange="ocrRenameGroup('${g.gid}', this.value)" title="Study title" style="width:100%; font-size:13px; font-weight:700; padding:5px 8px; border:1px solid var(--line); border-radius:4px; background:var(--paper); color:var(--ink); box-sizing:border-box;" />
+          <div style="display:flex; gap:6px; align-items:center; margin-top:6px; flex-wrap:wrap;">
+            <select onchange="ocrSetGroupAccess('${g.gid}', this.value)" title="Access level for new study" ${g.study_id ? "disabled" : ""} style="font-size:10.5px; padding:3px 6px; border:1px solid var(--line); border-radius:4px; background:var(--paper); color:var(--ink);">
+              <option value="member_only" ${g.access_level === "member_only" ? "selected" : ""}>Member-only</option>
+              <option value="public" ${g.access_level === "public" ? "selected" : ""}>Public</option>
+            </select>
+            ${mergeSel}
+            <span class="badge" style="background:var(--paper); font-size:9.5px; color:var(--muted);">${idxs.length} plate(s) &middot; ${pubInStudy} pub</span>
+          </div>
         </div>
-        <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:4px;">${platesHtml}</div>
+        ${rows}
       </div>`;
   }).join("");
 
   const publicCount = plates.filter(p => p.is_public).length;
-  panel.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
-      <span style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--accent); letter-spacing:0.06em;">Study Grouping &amp; Public Plates</span>
-      <span style="font-size:11px; color:var(--muted);">${plates.length} plate(s) &rarr; ${groups.length} study/studies &middot; engine: ${engineBadge} &middot; ${publicCount} public</span>
+  rail.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:6px; flex-wrap:wrap;">
+      <span style="font-size:10.5px; text-transform:uppercase; font-weight:700; color:var(--accent); letter-spacing:0.06em;">Inferred Studies</span>
+      <span style="font-size:10.5px; color:var(--muted);">${plates.length}&rarr;${groups.length} &middot; ${engineBadge} &middot; ${publicCount} pub</span>
     </div>
-    ${groupsHtml}
-    <div style="font-size:11px; color:var(--muted); margin-top:4px;">Tip: click a plate to review its OCR. Tick "Public" to expose it to guests (first few are pre-selected). Explicit public picks override the global preview setting.</div>`;
+    ${cards}
+    <div style="font-size:10.5px; color:var(--muted);">Click a plate to review it. "Pub" exposes a plate to guests; explicit picks override the global preview.</div>`;
 
-  // Keep the inspection panel's "Inferred Study" line in sync with any
-  // regrouping (move/merge/public-toggle all route through here).
-  updateOcrInferredStudy(state.ocrPlateIndex || 0);
+  updateOcrInferredStudy(sel);
 }
+window.renderOcrWorkbench = renderOcrWorkbench;
+window.renderOcrGroups = renderOcrWorkbench;
 window.inferStudyGroups = inferStudyGroups;
-window.renderOcrGroups = renderOcrGroups;
 
 
 function loadSampleSlide(slideType) {

@@ -68,7 +68,7 @@
   <!-- Razorpay Checkout -->
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   
-  <link rel="stylesheet" href="styles.css?v=14">
+  <link rel="stylesheet" href="styles.css?v=15">
 </head>
 
 <body class="drm-protected">
@@ -412,9 +412,7 @@
       </div>
 
       <div id="ocrStudioContent">
-        <div class="studio-grid">
-          <!-- Left: Upload & Stage -->
-          <div>
+        <div class="ocr-setup">
             <!-- OCR ENGINE SELECTION CARD (2 Options: Gemini Vision Default vs Windows Native) -->
             <div class="ocr-engine-selector-card" id="ocrEngineSelectorCard">
               <div class="ocr-engine-header">
@@ -510,116 +508,87 @@
               <div id="ocrUploadPrompt" style="margin-top:14px;"></div>
             </div>
 
-            <!-- Preview Stage -->
-            <div class="preview-stage-card" id="ocrPreviewStage" style="display:none; margin-top:20px;">
-              <!-- Batch Queue Strip -->
-              <div id="ocrBatchStrip" style="display:none; margin-bottom:14px; background:var(--paper-sunken); padding:10px 12px; border-radius:var(--radius-sm); border:1px solid var(--line);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                  <span style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--accent); letter-spacing:0.06em;">Batch Plates Ingestion Queue:</span>
-                  <span id="ocrBatchCountBadge" class="badge" style="background:rgba(181,139,75,0.15); color:var(--accent); font-size:11px;">1 plate</span>
+          </div><!-- /.ocr-setup -->
+
+          <!-- REVIEW WORKBENCH (full-width; shown after upload). Hidden legacy nodes retained so existing JS references stay valid. -->
+          <div id="ocrPreviewStage" class="ocr-workbench-wrap" style="display:none; margin-top:20px;">
+            <div id="ocrBatchStrip" style="display:none;"><span id="ocrBatchCountBadge"></span><div id="ocrBatchThumbnails"></div></div>
+            <div id="ocrGroupPanel" style="display:none;"></div>
+
+            <div class="ocr-workbench">
+              <!-- LEFT RAIL: inferred studies -> plates -->
+              <aside class="ocr-study-rail" id="ocrStudyRail"></aside>
+
+              <!-- DETAIL PANE: the selected plate -->
+              <section class="ocr-detail-pane">
+                <div class="ocr-detail-head">
+                  <h4 style="font-family:var(--font-serif); font-size:18px; margin:0;" id="ocrPlateHeader">Visual Plate Inspection</h4>
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <label class="ocr-pub-toggle" title="Expose this plate to guests (overrides the global preview setting)">
+                      <input type="checkbox" id="ocrDetailPublicToggle" onchange="ocrTogglePlatePublic(state.ocrPlateIndex||0, this.checked); renderOcrWorkbench();" /> Public
+                    </label>
+                    <button id="ocrPrevPlateBtn" class="ctrl-btn" title="Previous Plate" onclick="showOcrPlate((state.ocrPlateIndex||0)-1)" style="display:none; padding:4px 8px;"><img src="assets/icons/arrow-left.svg" class="fmm-icon" alt="Prev" /></button>
+                    <span id="ocrPlateBadge" class="badge" style="background:var(--paper-sunken); font-size:11px; color:var(--ink-soft);">Plate 1</span>
+                    <button id="ocrNextPlateBtn" class="ctrl-btn" title="Next Plate" onclick="showOcrPlate((state.ocrPlateIndex||0)+1)" style="display:none; padding:4px 8px;"><img src="assets/icons/arrow-right.svg" class="fmm-icon" alt="Next" /></button>
+                  </div>
                 </div>
-                <div id="ocrBatchThumbnails" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:4px;"></div>
-              </div>
 
-              <!-- Study Grouping Panel (multi-study bulk split + per-plate public selection) -->
-              <div id="ocrGroupPanel" style="display:none; margin-bottom:14px;"></div>
+                <div class="stage-img-wrapper" style="position:relative; cursor:zoom-in;" onclick="openOcrLightbox()" title="Click to zoom">
+                  <img id="ocrPreviewImg" src="" alt="OCR Preview" style="max-height:300px; object-fit:contain; width:100%; border-radius:var(--radius-sm);">
+                </div>
 
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <h4 style="font-family:var(--font-serif); font-size:18px; margin:0;" id="ocrPlateHeader">Visual Plate Inspection</h4>
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <button id="ocrPrevPlateBtn" class="ctrl-btn" title="Previous Plate" onclick="showOcrPlate((state.ocrPlateIndex||0)-1)" style="display:none; padding:4px 8px;"><img src="assets/icons/arrow-left.svg" class="fmm-icon" alt="Prev" /></button>
-                  <span id="ocrPlateBadge" class="badge"
-                    style="background:var(--paper-sunken); font-size:11px; color:var(--ink-soft);">Plate 1</span>
-                  <button id="ocrNextPlateBtn" class="ctrl-btn" title="Next Plate" onclick="showOcrPlate((state.ocrPlateIndex||0)+1)" style="display:none; padding:4px 8px;"><img src="assets/icons/arrow-right.svg" class="fmm-icon" alt="Next" /></button>
+                <div style="font-size:12px; color:var(--muted); margin-top:10px; display:flex; flex-direction:column; gap:4px;">
+                  <div>Storage URI: <code id="ocrStorageUri" style="color:var(--accent); word-break:break-all;">/storage/images/...</code></div>
+                  <div>Target Research Iconograph: <strong id="ocrTargetMonographDisplay" style="color:var(--ink);">Ganesha: Variations in Iconography (Study 001)</strong></div>
+                  <div>Inferred Study: <strong id="ocrInferredStudyDisplay" style="color:var(--ink);"><span style="color:var(--muted);">inferring from plate header&hellip;</span></strong></div>
+                </div>
+
+                <!-- TAB BAR -->
+                <div class="ocr-tabbar">
+                  <button type="button" class="ocr-tab active" id="ocrTabCleanBtn" onclick="ocrSwitchTab('clean')">Cleaned IAST <span id="ocrCleanWordCount" class="ocr-tab-sub">0 words</span></button>
+                  <button type="button" class="ocr-tab" id="ocrTabRawBtn" onclick="ocrSwitchTab('raw')">Raw Stream <span id="ocrEngineIndicatorTag" class="badge" style="font-size:10px; background:rgba(181,139,75,0.15); color:var(--accent); border:1px solid rgba(181,139,75,0.3);">gemini-2.5-flash</span></button>
+                  <button type="button" class="ocr-tab" id="ocrTabPropsBtn" onclick="ocrSwitchTab('props')">Proposals <span id="ocrProposalCount" class="ocr-tab-sub">0 detected</span></button>
+                </div>
+
+                <!-- TAB PANELS -->
+                <div class="ocr-tabpanel" id="ocrPanelClean">
+                  <div id="ocrCleanedText" style="background:var(--paper-sunken); padding:14px; border-radius:var(--radius-md); font-size:13px; line-height:1.6; max-height:260px; overflow-y:auto; border:1px solid var(--line);">
+                    No slide uploaded yet. Choose an archetype above or drop a plate image.
+                  </div>
+                </div>
+                <div class="ocr-tabpanel" id="ocrPanelRaw" style="display:none;">
+                  <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:6px;" id="ocrEngineStreamLabel">Raw Engine Stream (Gemini 2.5 Flash Vision):</div>
+                  <div id="ocrRawText" style="background:var(--paper-sunken); padding:10px 14px; border-radius:var(--radius-md); font-size:11px; color:var(--ink); font-family:monospace; max-height:260px; overflow-y:auto; border:1px solid var(--line);">
+                    Awaiting OCR execution...
+                  </div>
+                </div>
+                <div class="ocr-tabpanel" id="ocrPanelProps" style="display:none;">
+                  <div id="layer2ProposalsList" class="proposals-list" style="max-height:300px; overflow-y:auto;">
+                    <div style="font-size:13px; color:var(--muted); padding:10px;">Proposals will appear here after OCR analysis.</div>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <!-- STICKY APPROVE BAR -->
+            <div class="ocr-approve-bar">
+              <div class="precommit-impact-bar" id="precommitImpactBar" style="display:none;">
+                <div style="font-size:12px; font-weight:700; color:var(--ink);">Estimated Tables Impacted:</div>
+                <div class="impact-chip-list" id="precommitImpactChips">
+                  <span class="impact-chip insert">+1 study_slides</span>
+                  <span class="impact-chip insert">+1 slide_ocr_data</span>
+                  <span class="impact-chip update">+1 studies</span>
+                  <span class="impact-chip insert" id="chipProposals">+2 ai_metadata_proposals</span>
+                  <span class="impact-chip insert" id="chipMappings">+2 study_taxonomy_mappings</span>
                 </div>
               </div>
-              <div class="stage-img-wrapper" style="position:relative;">
-                <img id="ocrPreviewImg" src="" alt="OCR Preview"
-                  style="max-height:340px; object-fit:contain; width:100%; border-radius:var(--radius-sm);">
-              </div>
-              <div
-                style="font-size:12px; color:var(--muted); margin-top:10px; display:flex; flex-direction:column; gap:4px;">
-                <div>Storage URI: <code id="ocrStorageUri"
-                    style="color:var(--accent); word-break:break-all;">/storage/images/...</code></div>
-                <div>Target Research Iconograph: <strong id="ocrTargetMonographDisplay"
-                    style="color:var(--ink);">Ganesha: Variations in Iconography (Study 001)</strong></div>
-                <div>Inferred Study: <strong id="ocrInferredStudyDisplay"
-                    style="color:var(--ink);"><span style="color:var(--muted);">inferring from plate header&hellip;</span></strong></div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <button id="approveIngestBtn" class="btn-primary" style="width:100%; justify-content:center; padding:14px; font-size:15px;" disabled>
+                  <span><img src="assets/icons/pramana-check.svg" class="fmm-icon" alt="" /></span> Approve &amp; Ingest into Knowledge Graph
+                </button>
+                <div id="approveStatus" style="display:none; font-size:13px; line-height:1.5; padding:10px 14px; border-radius:var(--radius-md);"></div>
               </div>
             </div>
-          </div>
-
-          <!-- Right: Extracted OCR & Proposals -->
-          <div class="preview-stage-card">
-            <h4 style="font-family:var(--font-serif); font-size:20px; margin-bottom:16px;">OCR Telemetry &amp; AI
-              Proposals</h4>
-
-            <div style="margin-bottom:16px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <strong
-                  style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent);">Cleaned
-                  Scholarly Sanskrit (IAST Repaired):</strong>
-                <span id="ocrCleanWordCount" style="font-size:11px; color:var(--muted);">0 words</span>
-              </div>
-              <div id="ocrCleanedText"
-                style="background:var(--paper-sunken); padding:14px; border-radius:var(--radius-md); font-size:13px; line-height:1.6; max-height:150px; overflow-y:auto; border:1px solid var(--line);">
-                No slide uploaded yet. Choose an archetype above or drop a plate image.
-              </div>
-            </div>
-
-            <div style="margin-bottom:16px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <strong style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted);"
-                  id="ocrEngineStreamLabel">Raw
-                  Engine Stream (Gemini 2.5 Flash Vision):</strong>
-                <span id="ocrEngineIndicatorTag" class="badge"
-                  style="font-size:10.5px; background:rgba(181,139,75,0.15); color:var(--accent); border:1px solid rgba(181,139,75,0.3);">gemini-2.5-flash</span>
-              </div>
-              <div id="ocrRawText"
-                style="background:var(--paper-sunken); padding:10px 14px; border-radius:var(--radius-md); font-size:11px; color:var(--ink); font-family:monospace; max-height:75px; overflow-y:auto; border:1px solid var(--line);">
-                Awaiting OCR execution...
-              </div>
-            </div>
-
-            <!-- Layer 2 Proposals Checklist -->
-            <div style="margin-bottom:16px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <strong
-                  style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--bronze);">Proposed
-                  Iconographic Entities (Layer 2 &rarr; Layer 3):</strong>
-                <span id="ocrProposalCount" style="font-size:11px; color:var(--muted);">0 detected</span>
-              </div>
-              <div id="layer2ProposalsList" class="proposals-list" style="max-height:280px; overflow-y:auto;">
-                <div style="font-size:13px; color:var(--muted); padding:10px;">Proposals will appear here after OCR
-                  analysis.</div>
-              </div>
-              <div style="display:flex; justify-content:flex-end; margin-top:8px;">
-                <!-- <button type="button" class="btn-secondary" id="btnAddCustomProposal" onclick="addCustomProposal()"
-                  style="font-size:12px; padding:6px 12px; display:inline-flex; align-items:center; gap:6px;">
-                  <span>+</span> Add Custom Iconographic Entity
-                </button> -->
-              </div>
-            </div>
-
-            <!-- Pre-Commit Tables Impacted Live Preview Bar -->
-            <div class="precommit-impact-bar" id="precommitImpactBar" style="display:none;">
-              <div style="font-size:12px; font-weight:700; color:var(--ink);">Estimated Tables Impacted:</div>
-              <div class="impact-chip-list" id="precommitImpactChips">
-                <span class="impact-chip insert">+1 study_slides</span>
-                <span class="impact-chip insert">+1 slide_ocr_data</span>
-                <span class="impact-chip update">+1 studies</span>
-                <span class="impact-chip insert" id="chipProposals">+2 ai_metadata_proposals</span>
-                <span class="impact-chip insert" id="chipMappings">+2 study_taxonomy_mappings</span>
-              </div>
-            </div>
-
-            <!-- Ingest Action -->
-            <button id="approveIngestBtn" class="btn-primary"
-              style="width:100%; justify-content:center; padding:14px; font-size:15px;" disabled>
-              <span><img src="assets/icons/pramana-check.svg" class="fmm-icon" alt="" /></span> Approve &amp; Ingest
-              into Knowledge Graph
-            </button>
-            <div id="approveStatus" style="display:none; margin-top:10px; font-size:13px; line-height:1.5; padding:10px 14px; border-radius:var(--radius-md);"></div>
           </div>
         </div>
       </div>
@@ -2021,6 +1990,38 @@
   <!-- ==================================================================== -->
   <!-- MODAL: CREATE NEW RESEARCH ICONOGRAPH / STUDY                         -->
   <!-- ==================================================================== -->
+  <!-- OCR PROCESSING PROGRESS MODAL -->
+  <div class="modal-backdrop" id="ocrProcessingModal">
+    <div class="modal-dialog" style="max-width:480px;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <img src="assets/icons/dharma-chakra.svg" class="fmm-icon spin-fast" id="ocrProcModalSpinner" style="width:22px; height:22px;" alt="" />
+          <div>
+            <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.12em; color:var(--accent); font-weight:700;">Ingestion Pipeline</span>
+            <h3 style="font-family:var(--font-serif); font-size:19px; margin:2px 0 0 0;" id="ocrProcModalTitle">Processing plates&hellip;</h3>
+          </div>
+        </div>
+      </div>
+      <div style="padding:22px;">
+        <div class="ocr-proc-track"><div class="ocr-proc-fill" id="ocrProcModalBar" style="width:0%;"></div></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+          <span id="ocrProcModalCount" style="font-size:13px; font-weight:700; color:var(--ink);">0 of 0</span>
+          <span id="ocrProcModalPct" style="font-size:12px; color:var(--muted);">0%</span>
+        </div>
+        <div id="ocrProcModalPhase" style="font-size:12.5px; color:var(--muted); margin-top:6px;">Extracting OCR text&hellip;</div>
+        <div id="ocrProcModalFile" style="font-size:11.5px; color:var(--accent); margin-top:4px; word-break:break-all; min-height:15px;"></div>
+        <div style="display:flex; justify-content:flex-end; margin-top:18px;">
+          <button type="button" class="btn-secondary" id="ocrProcCancelBtn" style="padding:8px 16px; font-size:13px;">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OCR IMAGE LIGHTBOX -->
+  <div id="ocrLightbox" style="display:none; position:fixed; inset:0; z-index:1200; background:rgba(20,16,12,0.88); align-items:center; justify-content:center; cursor:zoom-out;" onclick="closeOcrLightbox()">
+    <img id="ocrLightboxImg" src="" alt="Plate (full size)" style="max-width:94vw; max-height:94vh; object-fit:contain; border-radius:6px; box-shadow:0 10px 60px rgba(0,0,0,0.6);" />
+  </div>
+
   <div class="modal-backdrop" id="newStudyModal">
     <div class="modal-dialog" style="max-width:560px;">
       <div class="modal-header">
@@ -2425,7 +2426,7 @@
 
   <script src="assets/gallery_3d.js"></script>
   <script src="assets/hero_3d_iconography.js?v=3"></script>
-  <script src="app.js?v=31"></script>
+  <script src="app.js?v=32"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       if (window.FMMHeroIconography3D) {

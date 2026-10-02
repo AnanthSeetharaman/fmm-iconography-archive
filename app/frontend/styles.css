@@ -946,6 +946,138 @@ select.form-input {
   gap: 32px;
 }
 
+/* ===== OCR Review Workbench ===== */
+.ocr-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.ocr-workbench-wrap {
+  background: var(--paper-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+}
+.ocr-workbench {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.ocr-study-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 620px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.ocr-study-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper-sunken);
+  overflow: hidden;
+}
+.ocr-study-card-head {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper-card);
+}
+.ocr-plate-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  border-top: 1px solid var(--line);
+  transition: background 0.15s;
+}
+.ocr-plate-row:hover { background: var(--paper-card); }
+.ocr-plate-row.selected {
+  background: rgba(181, 139, 75, 0.14);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.ocr-plate-row-thumb {
+  width: 40px; height: 40px; flex: 0 0 40px;
+  object-fit: cover; border-radius: 4px; border: 1px solid var(--line);
+}
+.ocr-detail-pane {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper-card);
+  padding: 16px;
+}
+.ocr-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.ocr-pub-toggle {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 700; color: var(--ink);
+  cursor: pointer; user-select: none;
+}
+.ocr-tabbar {
+  display: flex;
+  gap: 4px;
+  margin-top: 14px;
+  border-bottom: 2px solid var(--line);
+}
+.ocr-tab {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px;
+  font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--muted);
+  background: transparent;
+  border: none; border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+}
+.ocr-tab:hover { color: var(--ink); }
+.ocr-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.ocr-tab-sub {
+  font-size: 10px; font-weight: 600;
+  text-transform: none; letter-spacing: 0;
+  color: var(--muted);
+}
+.ocr-tabpanel { padding-top: 14px; }
+.ocr-approve-bar {
+  position: sticky;
+  bottom: 0;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  background: var(--paper-card);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* Processing modal progress bar */
+.ocr-proc-track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--paper-sunken);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.ocr-proc-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+@media (max-width: 1024px) {
+  .ocr-workbench { grid-template-columns: 1fr; }
+  .ocr-study-rail { max-height: 300px; }
+}
+
 .upload-card-box {
   background: var(--paper-card);
   border: 2px dashed var(--line);
