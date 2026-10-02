@@ -543,6 +543,9 @@
                   <div>Inferred Study: <strong id="ocrInferredStudyDisplay" style="color:var(--ink);"><span style="color:var(--muted);">inferring from plate header&hellip;</span></strong></div>
                 </div>
 
+                <!-- Editable study controls for THIS plate's study (title / number / access / merge) -->
+                <div id="ocrDetailStudyControls" style="margin-top:12px;"></div>
+
                 <!-- TAB BAR -->
                 <div class="ocr-tabbar">
                   <button type="button" class="ocr-tab active" id="ocrTabCleanBtn" onclick="ocrSwitchTab('clean')">Cleaned IAST <span id="ocrCleanWordCount" class="ocr-tab-sub">0 words</span></button>
@@ -2426,7 +2429,7 @@
 
   <script src="assets/gallery_3d.js"></script>
   <script src="assets/hero_3d_iconography.js?v=3"></script>
-  <script src="app.js?v=32"></script>
+  <script src="app.js?v=33"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       if (window.FMMHeroIconography3D) {

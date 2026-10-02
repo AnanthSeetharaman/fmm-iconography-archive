@@ -1948,6 +1948,7 @@ function showOcrPlate(i) {
   renderProposals(plate.proposals);
   updatePrecommitImpact(plate.proposals);
   updateOcrInferredStudy(i);
+  renderDetailStudyControls(i);
 
   const pubToggle = document.getElementById("ocrDetailPublicToggle");
   if (pubToggle) pubToggle.checked = !!(plate.is_public);
@@ -1993,6 +1994,40 @@ function updateOcrInferredStudy(i) {
   el.innerHTML = `${title}${num}${kind}${pub}${eng}`;
 }
 window.updateOcrInferredStudy = updateOcrInferredStudy;
+
+// Editable study controls for the CURRENT plate's study, surfaced inside the
+// Visual Plate Inspection pane (title / number / Member-only access / Merge into).
+// Wired to the same handlers as the left rail so edits stay in sync.
+function renderDetailStudyControls(i) {
+  const box = document.getElementById("ocrDetailStudyControls");
+  if (!box) return;
+  const groups = state.ocrGroups || [];
+  const g = groups.find(x => (x.plate_indices || []).includes(i));
+  if (!g) { box.innerHTML = ""; return; }
+  const groupOptions = groups.filter(x => x.gid !== g.gid)
+    .map(x => `<option value="${x.gid}">${escapeHtml(x.study_title || x.gid)}</option>`).join("");
+  const mergeField = groups.length > 1 ? `
+      <label style="font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); display:flex; flex-direction:column; gap:3px;">Merge into
+        <select onchange="ocrMergeGroup('${g.gid}', this.value); this.selectedIndex=0;" title="Merge this plate's study into another" style="font-size:12px; padding:6px 8px; border:1px solid var(--line); border-radius:4px; background:var(--paper); color:var(--ink);"><option value="">Merge into&hellip;</option>${groupOptions}</select>
+      </label>` : "";
+  box.innerHTML = `
+    <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; padding:12px; background:var(--paper-sunken); border:1px solid var(--line); border-radius:var(--radius-md);">
+      <label style="font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); display:flex; flex-direction:column; gap:3px;">Study #
+        <input value="${escapeHtml(g.study_number || "")}" onchange="ocrSetGroupNumber('${g.gid}', this.value)" title="Study number" style="width:92px; font-size:12px; padding:6px 8px; border:1px solid var(--line); border-radius:4px; background:var(--paper); color:var(--ink);" />
+      </label>
+      <label style="font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); display:flex; flex-direction:column; gap:3px; flex:1 1 220px;">Inferred Study
+        <input value="${escapeHtml(g.study_title || "")}" onchange="ocrRenameGroup('${g.gid}', this.value)" title="Study title (inferred from the plate header)" style="width:100%; font-size:13px; font-weight:700; padding:6px 8px; border:1px solid var(--line); border-radius:4px; background:var(--paper); color:var(--ink); box-sizing:border-box;" />
+      </label>
+      <label style="font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); display:flex; flex-direction:column; gap:3px;">Access
+        <select onchange="ocrSetGroupAccess('${g.gid}', this.value)" title="${g.study_id ? "Access is fixed for an existing study" : "Access level for this new study"}" ${g.study_id ? "disabled" : ""} style="font-size:12px; padding:6px 8px; border:1px solid var(--line); border-radius:4px; background:var(--paper); color:var(--ink);">
+          <option value="member_only" ${g.access_level === "member_only" ? "selected" : ""}>Member-only</option>
+          <option value="public" ${g.access_level === "public" ? "selected" : ""}>Public</option>
+        </select>
+      </label>
+      ${mergeField}
+    </div>`;
+}
+window.renderDetailStudyControls = renderDetailStudyControls;
 
 // Detail-pane tab switching (Cleaned / Raw / Proposals).
 function ocrSwitchTab(which) {
@@ -2121,9 +2156,9 @@ async function inferStudyGroups() {
 function ocrFindGroupOfPlate(idx) {
   return (state.ocrGroups || []).find(g => g.plate_indices.includes(idx));
 }
-function ocrRenameGroup(gid, val) { const g = (state.ocrGroups || []).find(x => x.gid === gid); if (g) { g.study_title = val; updateOcrInferredStudy(state.ocrPlateIndex || 0); } }
-function ocrSetGroupNumber(gid, val) { const g = (state.ocrGroups || []).find(x => x.gid === gid); if (g) { g.study_number = val; updateOcrInferredStudy(state.ocrPlateIndex || 0); } }
-function ocrSetGroupAccess(gid, val) { const g = (state.ocrGroups || []).find(x => x.gid === gid); if (g) g.access_level = val; }
+function ocrRenameGroup(gid, val) { const g = (state.ocrGroups || []).find(x => x.gid === gid); if (g) { g.study_title = val; renderOcrWorkbench(); } }
+function ocrSetGroupNumber(gid, val) { const g = (state.ocrGroups || []).find(x => x.gid === gid); if (g) { g.study_number = val; renderOcrWorkbench(); } }
+function ocrSetGroupAccess(gid, val) { const g = (state.ocrGroups || []).find(x => x.gid === gid); if (g) { g.access_level = val; renderOcrWorkbench(); } }
 function ocrTogglePlatePublic(idx, checked) { if (state.ocrPlates[idx]) state.ocrPlates[idx].is_public = !!checked; }
 
 function ocrMovePlate(idx, targetGid) {
@@ -2233,6 +2268,7 @@ function renderOcrWorkbench() {
     <div style="font-size:10.5px; color:var(--muted);">Click a plate to review it. "Pub" exposes a plate to guests; explicit picks override the global preview.</div>`;
 
   updateOcrInferredStudy(sel);
+  renderDetailStudyControls(sel);
 }
 window.renderOcrWorkbench = renderOcrWorkbench;
 window.renderOcrGroups = renderOcrWorkbench;
