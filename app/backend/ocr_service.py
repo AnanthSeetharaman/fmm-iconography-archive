@@ -522,7 +522,11 @@ def commit_curator_approval(
     raw_ocr: str,
     cleaned_ocr: str,
     approved_proposals: List[Dict[str, Any]],
-    ocr_engine: str = LLM_MODEL
+    ocr_engine: str = LLM_MODEL,
+    is_public: bool = False,
+    study_title: Optional[str] = None,
+    study_number: Optional[str] = None,
+    access_level: str = "member_only"
 ) -> Dict[str, Any]:
     """
     Commits an approved slide and its edited proposals into DuckDB.
@@ -535,20 +539,25 @@ def commit_curator_approval(
     conn = get_db()
     slide_id = f"sl_{uuid.uuid4().hex[:12]}"
 
-    # Check if study exists; auto-create if missing to avoid orphan FK (default access_level: member_only)
+    # Check if study exists; auto-create if missing to avoid orphan FK.
+    # Uses caller-provided study_title/study_number/access_level so one bulk
+    # batch can create multiple distinct studies (series -> studies -> plates).
     study_row = conn.execute("SELECT id, total_slides FROM studies WHERE id = ?", (study_id,)).fetchone()
     if not study_row:
-        clean_title = slide_title if slide_title else "Curated Iconography Study"
+        clean_title = study_title or slide_title or "Curated Iconography Study"
+        acc = access_level if access_level in ("public", "member_only", "scholar_tier", "premium") else "member_only"
+        stud_num = study_number or "Study 001"
         study_vec = text_to_dense_vector(f"{clean_title} {slide_title} {cleaned_ocr}")
         clean_slug = re.sub(r'[^a-z0-9]+', '-', study_id.lower()).strip('-')
         conn.execute("""
             INSERT INTO studies (id, series_id, slug, title, subtitle, study_number, summary_markdown, access_level, total_slides, cover_image_url, embedding)
-            VALUES (?, 1, ?, ?, ?, 'Study 001', 'Curated Research Iconograph', 'member_only', 0, ?, ?)
-        """, (study_id, clean_slug, clean_title, f"Iconograph on {clean_title}", image_rel_url, study_vec))
+            VALUES (?, 1, ?, ?, ?, ?, 'Curated Research Iconograph', ?, 0, ?, ?)
+        """, (study_id, clean_slug, clean_title, f"Iconograph on {clean_title}", stud_num, acc, image_rel_url, study_vec))
+        car_tier = "free" if acc == "public" else "scholar_pro"
         conn.execute("""
             INSERT INTO content_access_rules (id, study_id, required_tier, allow_preview, allow_high_res_download, is_blocked)
-            VALUES (?, ?, 'scholar_pro', TRUE, TRUE, FALSE)
-        """, (f"car_prem_{study_id}", study_id))
+            VALUES (?, ?, ?, TRUE, TRUE, FALSE)
+        """, (f"car_prem_{study_id}", study_id, car_tier))
 
     # Calculate actual sequential slide number
     cur_count = conn.execute("SELECT COUNT(*) FROM study_slides WHERE study_id = ?", (study_id,)).fetchone()[0]
@@ -559,11 +568,11 @@ def commit_curator_approval(
     conn.execute("""
         INSERT INTO study_slides (
             id, study_id, slide_number, slide_title, image_url, thumbnail_url,
-            caption, extracted_ocr_text, cleaned_text, visual_elements_summary, sort_order, embedding
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            caption, extracted_ocr_text, cleaned_text, visual_elements_summary, sort_order, embedding, is_public
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         slide_id, study_id, effective_slide_number, slide_title, image_rel_url, image_rel_url,
-        f"Curated plate {effective_slide_number}", raw_ocr, cleaned_ocr, "High-resolution iconography plate", effective_slide_number, slide_vec
+        f"Curated plate {effective_slide_number}", raw_ocr, cleaned_ocr, "High-resolution iconography plate", effective_slide_number, slide_vec, bool(is_public)
     ))
 
     # 2. Insert slide_ocr_data (FK: slide_id -> study_slides.id)

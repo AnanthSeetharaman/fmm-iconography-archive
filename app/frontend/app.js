@@ -1836,6 +1836,7 @@ async function handleFileUpload(fileOrFiles) {
   stage.style.display = "block";
   renderOcrBatchStrip();
   showOcrPlate(0);
+  inferStudyGroups();
 
   const approveBtn = document.getElementById("approveIngestBtn");
   if (approveBtn) {
@@ -1915,6 +1916,185 @@ function showOcrPlate(i) {
   if (nextBtn) { nextBtn.style.display = multi ? "inline-flex" : "none"; nextBtn.disabled = i === plates.length - 1; }
 }
 window.showOcrPlate = showOcrPlate;
+
+// ---------------------------------------------------------------------------
+// Study grouping (multi-study bulk split + per-plate public selection)
+// ---------------------------------------------------------------------------
+function _ocrSlugify(s) {
+  return (s || "study").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "study";
+}
+
+async function inferStudyGroups() {
+  const plates = state.ocrPlates || [];
+  const panel = document.getElementById("ocrGroupPanel");
+  if (!plates.length) { if (panel) panel.style.display = "none"; return; }
+
+  const buildFallback = () => {
+    plates.forEach(p => { if (p.is_public === undefined) p.is_public = false; });
+    state.ocrGroups = [{
+      gid: "g1",
+      study_id: state.selectedStudyId || null,
+      study_title: (plates[0] && plates[0].slide_title) || "Curated Iconography Study",
+      study_number: "Study 001",
+      access_level: "member_only",
+      is_front_matter: false,
+      plate_indices: plates.map((_, i) => i)
+    }];
+  };
+
+  if (panel) {
+    panel.style.display = "block";
+    panel.innerHTML = `<div style="padding:12px; color:var(--muted); font-size:13px;"><img src="assets/icons/dharma-chakra.svg" class="fmm-icon spin-fast" style="width:16px;height:16px;vertical-align:middle;" alt="" /> Inferring study grouping from plate headers&hellip;</div>`;
+  }
+
+  try {
+    const payload = {
+      series_id: state.selectedSeriesId || null,
+      plates: plates.map((p, i) => ({
+        index: i, slide_number: i + 1, slide_title: p.slide_title,
+        raw_ocr: p.raw_ocr || "", cleaned_ocr: p.cleaned_ocr || "", image_url: p.image_url
+      }))
+    };
+    const res = await fetch(`${API_BASE}/api/ocr/infer-groups`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e.detail || `infer-groups ${res.status}`);
+    }
+    const data = await res.json();
+    state.ocrInferEngine = data.engine_used || "heuristic";
+    const pub = new Set();
+    (data.groups || []).forEach(g => (g.suggested_public || []).forEach(i => pub.add(i)));
+    plates.forEach((p, i) => { p.is_public = pub.has(i); });
+    state.ocrGroups = (data.groups || []).map((g, gi) => ({
+      gid: `g${gi + 1}`,
+      study_id: g.study_id || null,
+      study_title: g.study_title || `Study ${gi + 1}`,
+      study_number: g.study_number || `Study ${String(gi + 1).padStart(3, "0")}`,
+      access_level: "member_only",
+      is_front_matter: !!g.is_front_matter,
+      plate_indices: (g.plate_indices || []).slice()
+    }));
+    if (!state.ocrGroups.length) buildFallback();
+  } catch (err) {
+    console.warn("Study grouping inference failed; using a single group.", err);
+    state.ocrInferEngine = "unavailable";
+    buildFallback();
+  }
+  renderOcrGroups();
+}
+
+function ocrFindGroupOfPlate(idx) {
+  return (state.ocrGroups || []).find(g => g.plate_indices.includes(idx));
+}
+function ocrRenameGroup(gid, val) { const g = (state.ocrGroups || []).find(x => x.gid === gid); if (g) g.study_title = val; }
+function ocrSetGroupNumber(gid, val) { const g = (state.ocrGroups || []).find(x => x.gid === gid); if (g) g.study_number = val; }
+function ocrSetGroupAccess(gid, val) { const g = (state.ocrGroups || []).find(x => x.gid === gid); if (g) g.access_level = val; }
+function ocrTogglePlatePublic(idx, checked) { if (state.ocrPlates[idx]) state.ocrPlates[idx].is_public = !!checked; }
+
+function ocrMovePlate(idx, targetGid) {
+  const src = ocrFindGroupOfPlate(idx);
+  if (!src) return;
+  if (targetGid === "__new__") {
+    src.plate_indices = src.plate_indices.filter(i => i !== idx);
+    state.ocrGroups.push({
+      gid: `g${Date.now().toString(36)}`, study_id: null,
+      study_title: (state.ocrPlates[idx] && state.ocrPlates[idx].slide_title) || "New Study",
+      study_number: `Study ${String(state.ocrGroups.length + 1).padStart(3, "0")}`,
+      access_level: "member_only", is_front_matter: false, plate_indices: [idx]
+    });
+  } else {
+    const tgt = (state.ocrGroups || []).find(x => x.gid === targetGid);
+    if (!tgt || tgt === src) { renderOcrGroups(); return; }
+    src.plate_indices = src.plate_indices.filter(i => i !== idx);
+    tgt.plate_indices.push(idx);
+  }
+  state.ocrGroups = state.ocrGroups.filter(g => g.plate_indices.length > 0);
+  renderOcrGroups();
+}
+
+function ocrMergeGroup(gid, targetGid) {
+  if (!targetGid || gid === targetGid) { renderOcrGroups(); return; }
+  const src = (state.ocrGroups || []).find(x => x.gid === gid);
+  const tgt = (state.ocrGroups || []).find(x => x.gid === targetGid);
+  if (!src || !tgt) return;
+  tgt.plate_indices.push(...src.plate_indices);
+  state.ocrGroups = state.ocrGroups.filter(g => g !== src);
+  renderOcrGroups();
+}
+window.ocrRenameGroup = ocrRenameGroup;
+window.ocrSetGroupNumber = ocrSetGroupNumber;
+window.ocrSetGroupAccess = ocrSetGroupAccess;
+window.ocrTogglePlatePublic = ocrTogglePlatePublic;
+window.ocrMovePlate = ocrMovePlate;
+window.ocrMergeGroup = ocrMergeGroup;
+
+function renderOcrGroups() {
+  const panel = document.getElementById("ocrGroupPanel");
+  const groups = state.ocrGroups || [];
+  const plates = state.ocrPlates || [];
+  if (!panel) return;
+  if (groups.length <= 0 || plates.length <= 1) { panel.style.display = "none"; return; }
+  panel.style.display = "block";
+
+  const engine = state.ocrInferEngine || "heuristic";
+  const engineBadge = engine === "gemini" ? "Gemini" : (engine === "unavailable" ? "offline (manual)" : "heuristic fallback");
+  const groupOptions = (currentGid) => groups.filter(g => g.gid !== currentGid)
+    .map(g => `<option value="${g.gid}">${(g.study_title || g.gid).replace(/"/g, "&quot;")}</option>`).join("");
+
+  const groupsHtml = groups.map(g => {
+    const idxs = g.plate_indices.slice().sort((a, b) => a - b);
+    const platesHtml = idxs.map(idx => {
+      const p = plates[idx]; if (!p) return "";
+      const moveOpts = groups.map(gg => `<option value="${gg.gid}" ${gg.gid === g.gid ? "selected" : ""}>${(gg.study_number || gg.gid)}</option>`).join("") + `<option value="__new__">+ New study</option>`;
+      return `
+        <div class="ocr-group-plate" style="flex:0 0 auto; width:132px; border:1px solid var(--line); border-radius:var(--radius-sm); padding:6px; background:var(--paper-card);">
+          <div style="position:relative; width:100%; height:84px; border-radius:4px; overflow:hidden; cursor:pointer;" onclick="showOcrPlate(${idx})" title="Open plate ${idx + 1} for OCR review">
+            <img src="${formatImageUrl(p.image_url)}" onerror="this.src='/assets/shilpa_shastra_iconography.jpg';" style="width:100%; height:100%; object-fit:cover;" alt="Plate ${idx + 1}" />
+            <span style="position:absolute; bottom:0; right:0; background:rgba(0,0,0,0.6); color:#fff; font-size:9px; padding:1px 4px; border-top-left-radius:4px;">${idx + 1}</span>
+          </div>
+          <label style="display:flex; align-items:center; gap:5px; font-size:11px; margin-top:5px; cursor:pointer; color:var(--ink);">
+            <input type="checkbox" ${p.is_public ? "checked" : ""} onchange="ocrTogglePlatePublic(${idx}, this.checked)" /> Public
+          </label>
+          <select onchange="ocrMovePlate(${idx}, this.value)" title="Move plate to another study" style="width:100%; margin-top:4px; font-size:10px; padding:2px 4px; border:1px solid var(--line); border-radius:4px; background:var(--paper-sunken); color:var(--ink);">
+            ${moveOpts}
+          </select>
+        </div>`;
+    }).join("");
+
+    const attachedBadge = g.study_id ? `<span class="badge" style="background:rgba(16,185,129,0.14); color:var(--success); font-size:10px;">attaches to existing</span>` : `<span class="badge" style="background:rgba(181,139,75,0.14); color:var(--accent); font-size:10px;">new study</span>`;
+    const frontBadge = g.is_front_matter ? `<span class="badge" style="background:rgba(99,102,241,0.14); color:#6366f1; font-size:10px;">front matter</span>` : "";
+    const mergeSel = groups.length > 1 ? `<select onchange="ocrMergeGroup('${g.gid}', this.value); this.selectedIndex=0;" title="Merge this study into another" style="font-size:10px; padding:3px 6px; border:1px solid var(--line); border-radius:4px; background:var(--paper-sunken); color:var(--ink);"><option value="">Merge into&hellip;</option>${groupOptions(g.gid)}</select>` : "";
+
+    return `
+      <div class="ocr-group-card" style="border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px; margin-bottom:10px; background:var(--paper-sunken);">
+        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px;">
+          <input value="${(g.study_number || "").replace(/"/g, "&quot;")}" onchange="ocrSetGroupNumber('${g.gid}', this.value)" title="Study number" style="width:90px; font-size:12px; padding:4px 6px; border:1px solid var(--line); border-radius:4px; background:var(--paper-card); color:var(--ink);" />
+          <input value="${(g.study_title || "").replace(/"/g, "&quot;")}" onchange="ocrRenameGroup('${g.gid}', this.value)" title="Study title" style="flex:1 1 220px; font-size:13px; font-weight:600; padding:4px 8px; border:1px solid var(--line); border-radius:4px; background:var(--paper-card); color:var(--ink);" />
+          <select onchange="ocrSetGroupAccess('${g.gid}', this.value)" title="Access level for new study" ${g.study_id ? "disabled" : ""} style="font-size:11px; padding:4px 6px; border:1px solid var(--line); border-radius:4px; background:var(--paper-card); color:var(--ink);">
+            <option value="member_only" ${g.access_level === "member_only" ? "selected" : ""}>Member-only</option>
+            <option value="public" ${g.access_level === "public" ? "selected" : ""}>Public</option>
+          </select>
+          ${attachedBadge} ${frontBadge} ${mergeSel}
+          <span class="badge" style="background:var(--paper-card); font-size:10px; color:var(--muted);">${idxs.length} plate(s)</span>
+        </div>
+        <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:4px;">${platesHtml}</div>
+      </div>`;
+  }).join("");
+
+  const publicCount = plates.filter(p => p.is_public).length;
+  panel.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+      <span style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--accent); letter-spacing:0.06em;">Study Grouping &amp; Public Plates</span>
+      <span style="font-size:11px; color:var(--muted);">${plates.length} plate(s) &rarr; ${groups.length} study/studies &middot; engine: ${engineBadge} &middot; ${publicCount} public</span>
+    </div>
+    ${groupsHtml}
+    <div style="font-size:11px; color:var(--muted); margin-top:4px;">Tip: click a plate to review its OCR. Tick "Public" to expose it to guests (first few are pre-selected). Explicit public picks override the global preview setting.</div>`;
+}
+window.inferStudyGroups = inferStudyGroups;
+window.renderOcrGroups = renderOcrGroups;
+
 
 function loadSampleSlide(slideType) {
   const stage = document.getElementById("ocrPreviewStage");
@@ -2343,33 +2523,57 @@ async function handleCuratorApproval() {
 
   updateOcrPipelineStep(5);
 
-  const targetStudy = (state.ocrStudies || []).find(s => s.id === state.selectedStudyId);
-  const studyTitle = targetStudy ? targetStudy.title : "Curated Iconography Study";
-  const studyId = state.selectedStudyId || "s_ganesa_001";
   const engine = state.selectedOcrEngine === "gemini_vision" ? "gemini-2.5-flash" : "windows_media_ocr";
 
-  const slides = plates.map((plate, idx) => {
-    const approvedProposals = (plate.proposals || []).filter(p => p.approved !== false);
-    const title = plate.slide_title || (plate.image_url && plate.image_url.includes("mudra")
-      ? "Shikhara Mudra: Canonical Iconographic Hand Gesture"
-      : `Curated Plate ${idx + 1}: ${studyTitle}`);
-    return {
-      study_id: studyId,
-      slide_number: idx + 1,
-      slide_title: title,
-      image_url: plate.image_url,
-      raw_ocr: plate.raw_ocr,
-      cleaned_ocr: plate.cleaned_ocr,
-      approved_proposals: approvedProposals.map(p => ({
-        term_id: p.term_id,
-        canonical_name: p.canonical_name,
-        iast_name: p.iast_name,
-        category: p.category,
-        confidence: p.confidence,
-        evidence_snippet: p.evidence_snippet
-      })),
-      ocr_engine: plate.engine_used || engine
-    };
+  // Build the slides payload from the curator-edited study groups. Each group
+  // becomes one study (existing study_id, or a stable new client-generated id);
+  // every plate carries its per-plate is_public flag.
+  let groups = (state.ocrGroups && state.ocrGroups.length) ? state.ocrGroups : null;
+  if (!groups) {
+    const targetStudy = (state.ocrStudies || []).find(s => s.id === state.selectedStudyId);
+    groups = [{
+      study_id: state.selectedStudyId || "s_ganesa_001",
+      study_title: targetStudy ? targetStudy.title : "Curated Iconography Study",
+      study_number: "Study 001",
+      access_level: "member_only",
+      plate_indices: plates.map((_, i) => i)
+    }];
+  }
+
+  const slides = [];
+  groups.forEach(g => {
+    if (!g.study_id && !g._new_id) {
+      g._new_id = `s_${_ocrSlugify(g.study_title)}_${Math.random().toString(36).slice(2, 6)}`;
+    }
+    const resolvedId = g.study_id || g._new_id;
+    const idxs = g.plate_indices.slice().sort((a, b) => a - b);
+    idxs.forEach(idx => {
+      const plate = plates[idx];
+      if (!plate) return;
+      const approvedProposals = (plate.proposals || []).filter(p => p.approved !== false);
+      const title = plate.slide_title || `Curated Plate ${idx + 1}: ${g.study_title}`;
+      slides.push({
+        study_id: resolvedId,
+        slide_number: slides.length + 1,
+        slide_title: title,
+        image_url: plate.image_url,
+        raw_ocr: plate.raw_ocr,
+        cleaned_ocr: plate.cleaned_ocr,
+        approved_proposals: approvedProposals.map(p => ({
+          term_id: p.term_id,
+          canonical_name: p.canonical_name,
+          iast_name: p.iast_name,
+          category: p.category,
+          confidence: p.confidence,
+          evidence_snippet: p.evidence_snippet
+        })),
+        ocr_engine: plate.engine_used || engine,
+        is_public: !!plate.is_public,
+        study_title: g.study_title,
+        study_number: g.study_number,
+        access_level: g.access_level || "member_only"
+      });
+    });
   });
 
   const approveBtn = document.getElementById("approveIngestBtn");

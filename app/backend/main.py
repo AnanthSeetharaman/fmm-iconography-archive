@@ -26,6 +26,7 @@ from ocr_service import (
     create_new_study,
     create_new_series,
 )
+from ocr_grouping_service import infer_study_groupings
 from auth_service import (
     verify_google_id_token,
     create_session_token,
@@ -940,37 +941,47 @@ def api_get_study(study_id: str, request: Request):
             has_premium_access = True
 
     if not has_premium_access:
-        # Configurable public preview: show a subset of slides to non-members.
-        # Count + which end (first/latest) are admin-configurable via param_config.
-        try:
-            prev_count = int(float(get_param(conn, "guest_slide_preview_count", "2") or 2))
-        except Exception:
-            prev_count = 2
-        prev_mode = (get_param(conn, "guest_slide_preview_mode", "latest") or "latest").strip().lower()
+        # Explicit per-plate public picks WIN: if the study has any is_public plates,
+        # expose exactly those and ignore the global preview count. Otherwise fall back
+        # to the admin-configurable global preview (count + first/latest).
+        all_slides = conn.execute("""
+            SELECT id, slide_number, slide_title, image_url, thumbnail_url,
+                   caption, extracted_ocr_text, cleaned_text, visual_elements_summary, is_public
+            FROM study_slides
+            WHERE study_id = ?
+            ORDER BY slide_number ASC
+        """, (sid,)).fetchall()
 
-        preview_slides = []
-        if prev_count > 0:
-            all_slides = conn.execute("""
-                SELECT id, slide_number, slide_title, image_url, thumbnail_url,
-                       caption, extracted_ocr_text, cleaned_text, visual_elements_summary
-                FROM study_slides
-                WHERE study_id = ?
-                ORDER BY slide_number ASC
-            """, (sid,)).fetchall()
-            subset = all_slides[-prev_count:] if prev_mode == "latest" else all_slides[:prev_count]
-            preview_slides = [
-                {
-                    "id": sl[0],
-                    "slide_number": sl[1],
-                    "slide_title": sl[2],
-                    "image_url": sl[3],
-                    "thumbnail_url": sl[4],
-                    "caption": sl[5],
-                    "raw_ocr": sl[6],
-                    "cleaned_text": sl[7],
-                    "summary": sl[8]
-                } for sl in subset
-            ]
+        explicit = [sl for sl in all_slides if sl[9]]
+        if explicit:
+            subset = explicit
+            preview_basis = "explicit"
+        else:
+            try:
+                prev_count = int(float(get_param(conn, "guest_slide_preview_count", "2") or 2))
+            except Exception:
+                prev_count = 2
+            prev_mode = (get_param(conn, "guest_slide_preview_mode", "latest") or "latest").strip().lower()
+            if prev_count > 0:
+                subset = all_slides[-prev_count:] if prev_mode == "latest" else all_slides[:prev_count]
+            else:
+                subset = []
+            preview_basis = "global"
+
+        preview_slides = [
+            {
+                "id": sl[0],
+                "slide_number": sl[1],
+                "slide_title": sl[2],
+                "image_url": sl[3],
+                "thumbnail_url": sl[4],
+                "caption": sl[5],
+                "raw_ocr": sl[6],
+                "cleaned_text": sl[7],
+                "summary": sl[8],
+                "is_public": bool(sl[9])
+            } for sl in subset
+        ]
         conn.close()
 
         if trial_limit_reached:
@@ -1006,6 +1017,7 @@ def api_get_study(study_id: str, request: Request):
             "lock_message": lock_message,
             "is_preview": len(preview_slides) > 0,
             "preview_count": len(preview_slides),
+            "preview_basis": preview_basis,
             "slides": preview_slides,
             "taxonomy": []
         }
@@ -1013,7 +1025,7 @@ def api_get_study(study_id: str, request: Request):
     # Fetch all slides
     slides = conn.execute("""
         SELECT id, slide_number, slide_title, image_url, thumbnail_url,
-               caption, extracted_ocr_text, cleaned_text, visual_elements_summary
+               caption, extracted_ocr_text, cleaned_text, visual_elements_summary, is_public
         FROM study_slides
         WHERE study_id = ?
         ORDER BY slide_number ASC
@@ -1053,7 +1065,8 @@ def api_get_study(study_id: str, request: Request):
                 "caption": sl[5],
                 "raw_ocr": sl[6],
                 "cleaned_text": sl[7],
-                "summary": sl[8]
+                "summary": sl[8],
+                "is_public": bool(sl[9])
             } for sl in slides
         ],
         "taxonomy": [
@@ -1603,6 +1616,10 @@ class ApproveSlideRequest(BaseModel):
     cleaned_ocr: str
     approved_proposals: List[Dict[str, Any]]
     ocr_engine: Optional[str] = LLM_MODEL
+    is_public: bool = False
+    study_title: Optional[str] = None
+    study_number: Optional[str] = None
+    access_level: Optional[str] = "member_only"
 
 class ApproveBatchRequest(BaseModel):
     slides: List[ApproveSlideRequest]
@@ -1632,7 +1649,11 @@ def api_ocr_approve(req: ApproveSlideRequest, request: Request):
         raw_ocr=req.raw_ocr,
         cleaned_ocr=req.cleaned_ocr,
         approved_proposals=req.approved_proposals,
-        ocr_engine=req.ocr_engine or LLM_MODEL
+        ocr_engine=req.ocr_engine or LLM_MODEL,
+        is_public=req.is_public,
+        study_title=req.study_title,
+        study_number=req.study_number,
+        access_level=req.access_level or "member_only"
     )
 
 @app.post("/api/ocr/approve-batch")
@@ -1667,7 +1688,11 @@ def api_ocr_approve_batch(req: ApproveBatchRequest, request: Request):
             raw_ocr=s.raw_ocr,
             cleaned_ocr=s.cleaned_ocr,
             approved_proposals=s.approved_proposals,
-            ocr_engine=s.ocr_engine or LLM_MODEL
+            ocr_engine=s.ocr_engine or LLM_MODEL,
+            is_public=s.is_public,
+            study_title=s.study_title,
+            study_number=s.study_number,
+            access_level=s.access_level or "member_only"
         )
         committed_slides.append({
             "slide_id": res.get("slide_id"),
@@ -1694,13 +1719,47 @@ def api_ocr_approve_batch(req: ApproveBatchRequest, request: Request):
         for v in combined_tables_impacted.values()
     ]
 
+    distinct_studies = {s.study_id for s in req.slides}
     return {
         "status": "success",
-        "message": f"Successfully ingested batch of {len(committed_slides)} plates into study '{req.slides[0].study_id}'!",
+        "message": f"Successfully ingested {len(committed_slides)} plate(s) across {len(distinct_studies)} study/studies.",
         "total_slides_ingested": len(committed_slides),
+        "total_studies": len(distinct_studies),
         "slides": committed_slides,
         "tables_impacted": tables_impacted_list
     }
+
+class InferGroupsPlate(BaseModel):
+    index: int
+    slide_number: Optional[int] = None
+    slide_title: Optional[str] = None
+    raw_ocr: Optional[str] = ""
+    cleaned_ocr: Optional[str] = ""
+    image_url: Optional[str] = None
+
+class InferGroupsRequest(BaseModel):
+    series_id: Optional[int] = None
+    plates: List[InferGroupsPlate]
+
+@app.post("/api/ocr/infer-groups")
+def api_ocr_infer_groups(req: InferGroupsRequest, request: Request):
+    """
+    Curator-guarded: infer how a bulk batch of plates groups into studies.
+    Header-primary (TOC optional), attaching to existing studies in the series.
+    Gemini when reachable, deterministic heuristic fallback otherwise.
+    """
+    user = get_current_user_from_request(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required to infer study groupings.")
+    if user.get("role") not in ["curator", "admin"]:
+        raise HTTPException(status_code=403, detail="Forbidden: Only Curators or Administrators can run study grouping.")
+
+    if not req.plates:
+        raise HTTPException(status_code=400, detail="No plates provided for grouping.")
+
+    plates = [p.dict() for p in req.plates]
+    return infer_study_groupings(series_id=req.series_id, plates=plates)
+
 
 # ----------------------------------------------------------------------------
 # 3. ARCHIVE DATA STUDIO & ROW EXPLORER (ROUTE GUARDED - ADMIN ONLY)

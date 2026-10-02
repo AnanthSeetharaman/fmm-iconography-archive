@@ -303,7 +303,7 @@ def scholar_search(
         slides_data = conn.execute("""
             SELECT id, slide_number, slide_title, image_url, caption,
                    COALESCE(cleaned_text, extracted_ocr_text) AS text,
-                   embedding
+                   embedding, is_public
             FROM study_slides
             WHERE study_id = ?
             ORDER BY slide_number ASC
@@ -331,7 +331,7 @@ def scholar_search(
         best_vector_plate = None
 
         for sl in slides_data:
-            sl_id, sl_num, sl_title, sl_img, sl_caption, sl_text, sl_emb = sl
+            sl_id, sl_num, sl_title, sl_img, sl_caption, sl_text, sl_emb, sl_pub = sl
             has_hit = False
             hit_kind = None
             hit_detail = ""
@@ -427,6 +427,7 @@ def scholar_search(
                 "image_url": sl_img,
                 "caption": sl_caption,
                 "cleaned_text": sl_text,
+                "is_public": bool(sl_pub),
                 "has_term_hit": has_hit,
                 "hit_kind": hit_kind,
                 "hit_detail": hit_detail,

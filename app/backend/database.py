@@ -281,6 +281,7 @@ def init_duckdb_schema():
     ensure_phase2_tables(conn)
     ensure_secondary_study(conn)
     ensure_vector_columns(conn)
+    ensure_slide_public_column(conn)
     ensure_canonical_ganesa_study(conn)
 
     # Check if series is seeded
@@ -337,6 +338,18 @@ def ensure_vector_columns(conn):
     for table in ["series", "studies", "study_slides", "taxonomy_terms"]:
         try:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN embedding FLOAT[128];")
+        except Exception:
+            pass
+
+def ensure_slide_public_column(conn):
+    """Guarantees the per-plate public visibility flag exists on study_slides (idempotent)."""
+    try:
+        cols = [r[1] for r in conn.execute("PRAGMA table_info('study_slides')").fetchall()]
+        if "is_public" not in cols:
+            conn.execute("ALTER TABLE study_slides ADD COLUMN is_public BOOLEAN DEFAULT FALSE;")
+    except Exception:
+        try:
+            conn.rollback()
         except Exception:
             pass
 
@@ -477,6 +490,7 @@ def seed_param_config(conn):
                 ("pricing", "trial_study_limit", "3", "number", "Max distinct premium studies viewable during the free trial"),
                 ("features", "guest_slide_preview_count", "2", "number", "Number of slide previews shown to guests for premium studies"),
                 ("features", "guest_slide_preview_mode", "latest", "string", "Which slides guests preview on premium studies: 'first' or 'latest'"),
+                ("features", "public_front_matter_count", "3", "number", "Number of leading plates (series order) pre-selected as public in the OCR review; explicit per-plate picks override the global preview"),
             ]
             for group, key, val, vtype, desc in required:
                 present = conn.execute(
@@ -510,6 +524,7 @@ def seed_param_config(conn):
         ("features", "guest_ocr_snippets", "hidden", "string", "OCR snippet visibility for guests: visible, hidden, truncated", False),
         ("features", "guest_slide_preview_count", "2", "number", "Number of slide previews shown to guests for premium studies", False),
         ("features", "guest_slide_preview_mode", "latest", "string", "Which slides guests preview on premium studies: 'first' or 'latest'", False),
+        ("features", "public_front_matter_count", "3", "number", "Number of leading plates (series order) pre-selected as public in the OCR review; explicit per-plate picks override the global preview", False),
         ("features", "enable_drm_protection", "true", "boolean", "Enable right-click and drag protection on archival plates", False),
         ("features", "enable_watermark", "true", "boolean", "Show watermark overlay on plate images", False),
         ("features", "enable_demo_login", "true", "boolean", "Enable demo login buttons (disable in production)", False),
