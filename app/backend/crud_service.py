@@ -30,30 +30,19 @@ ENTITY_CONFIG = {
     },
 
     # ── BRONZE LAYER: T_RAW (Append-only / Engine Ingest) ──────────────────
-    "slide_ocr_data": {
-        "table": "slide_ocr_data",
-        "pk": "id",
-        "pk_type": "str",
-        "layer": "raw",
-        "label": "T_RAW_SLIDE_OCR (Raw OCR Output)",
-        "fields": [
-            "slide_id", "ocr_engine", "language_tag", "raw_ocr_output",
-            "normalized_text", "word_count", "confidence_avg", "tokens_json"
-        ],
-        "search_cols": ["raw_ocr_output", "normalized_text", "slide_id", "ocr_engine"]
-    },
     "study_slides": {
         "table": "study_slides",
         "pk": "id",
         "pk_type": "str",
         "layer": "raw",
-        "label": "T_RAW_STUDY_SLIDES (Plate Images & Captions)",
+        "label": "T_RAW_PLATES (Plates: image, OCR, tags, visibility)",
         "fields": [
             "study_id", "slide_number", "slide_title", "image_url",
             "thumbnail_url", "caption", "extracted_ocr_text", "cleaned_text",
-            "visual_elements_summary", "sort_order"
+            "visual_elements_summary", "sort_order", "is_public", "tags",
+            "ocr_engine", "word_count", "confidence_avg"
         ],
-        "search_cols": ["slide_title", "caption", "extracted_ocr_text", "cleaned_text"]
+        "search_cols": ["slide_title", "caption", "extracted_ocr_text", "cleaned_text", "tags"]
     },
     "ai_metadata_proposals": {
         "table": "ai_metadata_proposals",
@@ -180,18 +169,6 @@ ENTITY_CONFIG = {
             "slide_numbers", "curator_verified", "curator_notes"
         ],
         "search_cols": ["relevance_level", "curator_notes"]
-    },
-    "content_access_rules": {
-        "table": "content_access_rules",
-        "pk": "id",
-        "pk_type": "str",
-        "layer": "ods",
-        "label": "T_ODS_CONTENT_RULES (Access Control Policies)",
-        "fields": [
-            "study_id", "required_tier", "allow_preview",
-            "allow_high_res_download", "is_blocked", "block_reason"
-        ],
-        "search_cols": ["required_tier", "block_reason"]
     },
 
     # ── GOLD LAYER: T_SYST (System Operations, Telemetry, IAM) ─────────────
@@ -601,15 +578,13 @@ def get_cascade_impact(entity: str, record_id: Any) -> Dict[str, Any]:
                 n_slides = conn.execute("SELECT COUNT(*) FROM study_slides WHERE study_id = ?", (sid,)).fetchone()[0]
                 n_taxmap = conn.execute("SELECT COUNT(*) FROM study_taxonomy_mappings WHERE study_id = ?", (sid,)).fetchone()[0]
                 n_proposals = conn.execute("SELECT COUNT(*) FROM ai_metadata_proposals WHERE study_id = ?", (sid,)).fetchone()[0]
-                n_ocr = 0
                 if n_slides > 0:
-                    n_ocr = conn.execute("SELECT COUNT(*) FROM slide_ocr_data sod JOIN study_slides ss ON sod.slide_id=ss.id WHERE ss.study_id = ?", (sid,)).fetchone()[0]
                     study_children.append({
                         "table": "study_slides",
                         "count": n_slides,
-                        "children": [{"table": "slide_ocr_data", "count": n_ocr}] if n_ocr > 0 else []
+                        "children": []
                     })
-                    total_cascade += n_slides + n_ocr
+                    total_cascade += n_slides
                 if n_taxmap > 0:
                     study_children.append({"table": "study_taxonomy_mappings", "count": n_taxmap, "children": []})
                     total_cascade += n_taxmap
@@ -621,16 +596,15 @@ def get_cascade_impact(entity: str, record_id: Any) -> Dict[str, Any]:
 
     elif entity == "studies":
         n_slides = conn.execute("SELECT COUNT(*) FROM study_slides WHERE study_id = ?", (record_id,)).fetchone()[0]
-        n_ocr = conn.execute("SELECT COUNT(*) FROM slide_ocr_data sod JOIN study_slides ss ON sod.slide_id=ss.id WHERE ss.study_id = ?", (record_id,)).fetchone()[0]
         n_taxmap = conn.execute("SELECT COUNT(*) FROM study_taxonomy_mappings WHERE study_id = ?", (record_id,)).fetchone()[0]
         n_proposals = conn.execute("SELECT COUNT(*) FROM ai_metadata_proposals WHERE study_id = ?", (record_id,)).fetchone()[0]
         if n_slides > 0:
             children.append({
                 "table": "study_slides",
                 "count": n_slides,
-                "children": [{"table": "slide_ocr_data", "count": n_ocr}] if n_ocr > 0 else []
+                "children": []
             })
-            total_cascade += n_slides + n_ocr
+            total_cascade += n_slides
         if n_taxmap > 0:
             children.append({"table": "study_taxonomy_mappings", "count": n_taxmap, "children": []})
             total_cascade += n_taxmap
@@ -639,11 +613,7 @@ def get_cascade_impact(entity: str, record_id: Any) -> Dict[str, Any]:
             total_cascade += n_proposals
 
     elif entity == "study_slides":
-        n_ocr = conn.execute("SELECT COUNT(*) FROM slide_ocr_data WHERE slide_id = ?", (record_id,)).fetchone()[0]
         n_proposals = conn.execute("SELECT COUNT(*) FROM ai_metadata_proposals WHERE slide_id = ?", (record_id,)).fetchone()[0]
-        if n_ocr > 0:
-            children.append({"table": "slide_ocr_data", "count": n_ocr, "children": []})
-            total_cascade += n_ocr
         if n_proposals > 0:
             children.append({"table": "ai_metadata_proposals", "count": n_proposals, "children": []})
             total_cascade += n_proposals
@@ -747,7 +717,6 @@ def delete_record(entity: str, record_id: Any, cascade: bool = False,
         for sid in study_ids:
             slide_ids = [r[0] for r in conn.execute("SELECT id FROM study_slides WHERE study_id = ?", (sid,)).fetchall()]
             for slid in slide_ids:
-                conn.execute("DELETE FROM slide_ocr_data WHERE slide_id = ?", (slid,))
                 conn.execute("DELETE FROM ai_metadata_proposals WHERE slide_id = ?", (slid,))
             conn.execute("DELETE FROM study_slides WHERE study_id = ?", (sid,))
             conn.execute("DELETE FROM study_taxonomy_mappings WHERE study_id = ?", (sid,))
@@ -757,14 +726,12 @@ def delete_record(entity: str, record_id: Any, cascade: bool = False,
     elif entity == "studies":
         slide_ids = [r[0] for r in conn.execute("SELECT id FROM study_slides WHERE study_id = ?", (record_id,)).fetchall()]
         for slid in slide_ids:
-            conn.execute("DELETE FROM slide_ocr_data WHERE slide_id = ?", (slid,))
             conn.execute("DELETE FROM ai_metadata_proposals WHERE slide_id = ?", (slid,))
         conn.execute("DELETE FROM study_slides WHERE study_id = ?", (record_id,))
         conn.execute("DELETE FROM study_taxonomy_mappings WHERE study_id = ?", (record_id,))
         conn.execute("DELETE FROM ai_metadata_proposals WHERE study_id = ?", (record_id,))
 
     elif entity == "study_slides":
-        conn.execute("DELETE FROM slide_ocr_data WHERE slide_id = ?", (record_id,))
         conn.execute("DELETE FROM ai_metadata_proposals WHERE slide_id = ?", (record_id,))
 
     elif entity == "taxonomy_terms":

@@ -303,7 +303,7 @@ def scholar_search(
         slides_data = conn.execute("""
             SELECT id, slide_number, slide_title, image_url, caption,
                    COALESCE(cleaned_text, extracted_ocr_text) AS text,
-                   embedding, is_public
+                   embedding, is_public, tags
             FROM study_slides
             WHERE study_id = ?
             ORDER BY slide_number ASC
@@ -331,15 +331,16 @@ def scholar_search(
         best_vector_plate = None
 
         for sl in slides_data:
-            sl_id, sl_num, sl_title, sl_img, sl_caption, sl_text, sl_emb, sl_pub = sl
+            sl_id, sl_num, sl_title, sl_img, sl_caption, sl_text, sl_emb, sl_pub, sl_tags = sl
+            tag_text = " ".join(sl_tags) if sl_tags else ""
             has_hit = False
             hit_kind = None
             hit_detail = ""
             matched_cue_term = q_clean
 
-            if q_clean and sl_text and q_clean not in STOP_WORDS:
-                text_lower = sl_text.lower()
-                text_norm = normalize_indic_phonetics(sl_text)
+            if q_clean and (sl_text or tag_text) and q_clean not in STOP_WORDS:
+                text_lower = f"{sl_text or ''} {tag_text}".lower()
+                text_norm = normalize_indic_phonetics(f"{sl_text or ''} {tag_text}")
                 title_lower = (sl_title or "").lower()
 
                 # A. Direct Phrase Match in Embedded Corpus (e.g. "32 forms")
@@ -428,6 +429,7 @@ def scholar_search(
                 "caption": sl_caption,
                 "cleaned_text": sl_text,
                 "is_public": bool(sl_pub),
+                "tags": sl_tags or [],
                 "has_term_hit": has_hit,
                 "hit_kind": hit_kind,
                 "hit_detail": hit_detail,

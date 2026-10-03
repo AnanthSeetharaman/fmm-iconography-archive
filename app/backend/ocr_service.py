@@ -458,19 +458,13 @@ def create_new_study(title: str, subtitle: Optional[str] = None, series_id: int 
         summary = f"# {title}\n\n{sub}\n\nCurated research iconograph in the Five Metal Masonry Sacred Iconography Archive."
         study_vec = text_to_dense_vector(f"{title} {sub} {ser_row[1]}")
 
+        car_tier = "free" if access_level == "public" else "scholar_pro"
         conn.execute("""
             INSERT INTO studies (
                 id, series_id, slug, title, subtitle, study_number, summary_markdown,
-                access_level, total_slides, cover_image_url, embedding
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, '/storage/images/default_cover.jpg', ?)
-        """, (study_id, series_id, clean_slug, title, sub, study_num, summary, access_level, study_vec))
-
-        # Insert content access rule
-        car_tier = "free" if access_level == "public" else "scholar_pro"
-        conn.execute("""
-            INSERT INTO content_access_rules (id, study_id, required_tier, allow_preview, allow_high_res_download, is_blocked)
-            VALUES (?, ?, ?, TRUE, TRUE, FALSE)
-        """, (f"car_{study_id}", study_id, car_tier))
+                access_level, total_slides, cover_image_url, required_tier, embedding
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, '/storage/images/default_cover.jpg', ?, ?)
+        """, (study_id, series_id, clean_slug, title, sub, study_num, summary, access_level, car_tier, study_vec))
 
         return {
             "id": study_id,
@@ -531,7 +525,7 @@ def commit_curator_approval(
     """
     Commits an approved slide and its edited proposals into DuckDB.
     Strictly verifies and populates foreign key relations across:
-      studies -> study_slides -> slide_ocr_data
+      studies -> study_slides (self-contained OCR + tags + embeddings)
       studies + taxonomy_terms -> study_taxonomy_mappings
       studies + study_slides + taxonomy_terms -> ai_metadata_proposals
       taxonomy_types -> taxonomy_terms -> term_aliases
@@ -549,41 +543,34 @@ def commit_curator_approval(
         stud_num = study_number or "Study 001"
         study_vec = text_to_dense_vector(f"{clean_title} {slide_title} {cleaned_ocr}")
         clean_slug = re.sub(r'[^a-z0-9]+', '-', study_id.lower()).strip('-')
-        conn.execute("""
-            INSERT INTO studies (id, series_id, slug, title, subtitle, study_number, summary_markdown, access_level, total_slides, cover_image_url, embedding)
-            VALUES (?, 1, ?, ?, ?, ?, 'Curated Research Iconograph', ?, 0, ?, ?)
-        """, (study_id, clean_slug, clean_title, f"Iconograph on {clean_title}", stud_num, acc, image_rel_url, study_vec))
         car_tier = "free" if acc == "public" else "scholar_pro"
         conn.execute("""
-            INSERT INTO content_access_rules (id, study_id, required_tier, allow_preview, allow_high_res_download, is_blocked)
-            VALUES (?, ?, ?, TRUE, TRUE, FALSE)
-        """, (f"car_prem_{study_id}", study_id, car_tier))
+            INSERT INTO studies (id, series_id, slug, title, subtitle, study_number, summary_markdown, access_level, total_slides, cover_image_url, required_tier, embedding)
+            VALUES (?, 1, ?, ?, ?, ?, 'Curated Research Iconograph', ?, 0, ?, ?, ?)
+        """, (study_id, clean_slug, clean_title, f"Iconograph on {clean_title}", stud_num, acc, image_rel_url, car_tier, study_vec))
 
     # Calculate actual sequential slide number
     cur_count = conn.execute("SELECT COUNT(*) FROM study_slides WHERE study_id = ?", (study_id,)).fetchone()[0]
     effective_slide_number = cur_count + 1
 
-    # 1. Insert study_slides with 128-d dense vector embedding
+    # 1. Insert the plate (study_slides) — self-contained: OCR + embeddings + tags + visibility.
     slide_vec = text_to_dense_vector(f"{slide_title} {cleaned_ocr}")
+    plate_tags = []
+    for _p in (approved_proposals or []):
+        _nm = (_p.get("canonical_name") or "").strip()
+        if _nm:
+            plate_tags.append(_nm)
+    tags_vec = text_to_dense_vector(" ".join(plate_tags) if plate_tags else slide_title)
     conn.execute("""
         INSERT INTO study_slides (
             id, study_id, slide_number, slide_title, image_url, thumbnail_url,
-            caption, extracted_ocr_text, cleaned_text, visual_elements_summary, sort_order, embedding, is_public
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            caption, extracted_ocr_text, cleaned_text, visual_elements_summary, sort_order,
+            embedding, is_public, tags, tags_embedding, ocr_engine, language_tag, word_count, confidence_avg, tokens_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'en-US', ?, 0.98, '{}')
     """, (
         slide_id, study_id, effective_slide_number, slide_title, image_rel_url, image_rel_url,
-        f"Curated plate {effective_slide_number}", raw_ocr, cleaned_ocr, "High-resolution iconography plate", effective_slide_number, slide_vec, bool(is_public)
-    ))
-
-    # 2. Insert slide_ocr_data (FK: slide_id -> study_slides.id)
-    ocr_id = f"ocr_{slide_id}"
-    conn.execute("""
-        INSERT INTO slide_ocr_data (
-            id, slide_id, ocr_engine, language_tag, raw_ocr_output, normalized_text,
-            word_count, confidence_avg, tokens_json
-        ) VALUES (?, ?, ?, 'en-US', ?, ?, ?, 0.98, '{}')
-    """, (
-        ocr_id, slide_id, ocr_engine, raw_ocr, cleaned_ocr, len(cleaned_ocr.split())
+        f"Curated plate {effective_slide_number}", raw_ocr, cleaned_ocr, "High-resolution iconography plate",
+        effective_slide_number, slide_vec, bool(is_public), plate_tags, tags_vec, ocr_engine, len((cleaned_ocr or "").split())
     ))
 
     # 3. Update studies.total_slides and cover_image_url
@@ -687,12 +674,6 @@ def commit_curator_approval(
             "operation": "INSERT",
             "rows_impacted": 1,
             "description": f"Plate {effective_slide_number} recorded in '{study_id}' (URI: {image_rel_url})"
-        },
-        {
-            "table_name": "slide_ocr_data",
-            "operation": "INSERT",
-            "rows_impacted": 1,
-            "description": f"Detailed OCR tokens and normalized text stored for slide '{slide_id}'"
         },
         {
             "table_name": "studies",

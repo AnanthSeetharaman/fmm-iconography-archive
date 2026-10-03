@@ -1857,13 +1857,13 @@ def api_list_tables(request: Request):
     
     # Categorization mapping for organized browsing
     def get_table_category(tname):
-        if tname in ["studies", "study_slides", "series", "slide_ocr_data"]:
+        if tname in ["studies", "study_slides", "series"]:
             return "core", "Core Content", 1
         elif tname in ["taxonomy_terms", "taxonomy_types", "term_aliases", "study_taxonomy_mappings", "ai_metadata_proposals", "dictionary_entries"]:
             return "taxonomy", "Controlled Taxonomy", 2
         elif tname in ["places", "periods_dynasties"]:
             return "geography", "Geography & Eras", 3
-        elif tname in ["users", "user_subscriptions", "user_downloads", "user_behavior_logs", "content_access_rules", "premium_download_requests"]:
+        elif tname in ["users", "user_subscriptions", "user_downloads", "user_behavior_logs", "premium_download_requests"]:
             return "telemetry", "Access & Telemetry", 4
         return "system", "Internal Schema", 5
 

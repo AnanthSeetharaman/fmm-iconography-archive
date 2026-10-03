@@ -48,7 +48,9 @@ def init_duckdb_schema():
         status VARCHAR NOT NULL,
         cover_image_url VARCHAR,
         sort_order INTEGER DEFAULT 0,
-        embedding FLOAT[128]
+        embedding FLOAT[128],
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS studies (
@@ -67,9 +69,18 @@ def init_duckdb_schema():
         total_slides INTEGER DEFAULT 0,
         search_keywords VARCHAR,
         curator_notes VARCHAR,
-        embedding FLOAT[128]
+        embedding FLOAT[128],
+        -- Access control (folded in from the former content_access_rules table)
+        required_tier VARCHAR DEFAULT 'free',
+        is_blocked BOOLEAN DEFAULT FALSE,
+        block_reason VARCHAR,
+        -- Audit
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
+    -- "Plates" (physical table study_slides): self-contained OCR + embeddings + tags + visibility.
+    -- Absorbs the former slide_ocr_data table (ocr_engine/word_count/confidence_avg/tokens_json).
     CREATE TABLE IF NOT EXISTS study_slides (
         id VARCHAR PRIMARY KEY,
         study_id VARCHAR REFERENCES studies(id),
@@ -78,23 +89,21 @@ def init_duckdb_schema():
         image_url VARCHAR NOT NULL,
         thumbnail_url VARCHAR,
         caption VARCHAR,
-        extracted_ocr_text VARCHAR,
-        cleaned_text VARCHAR,
+        extracted_ocr_text VARCHAR,     -- OCR_DATA (raw)
+        cleaned_text VARCHAR,           -- CLEANSED_DATA
         visual_elements_summary VARCHAR,
         sort_order INTEGER DEFAULT 0,
-        embedding FLOAT[128]
-    );
-
-    CREATE TABLE IF NOT EXISTS slide_ocr_data (
-        id VARCHAR PRIMARY KEY,
-        slide_id VARCHAR REFERENCES study_slides(id),
-        ocr_engine VARCHAR NOT NULL,
+        embedding FLOAT[128],           -- CLEANSED_DATA_EMBEDDED
+        is_public BOOLEAN DEFAULT FALSE,
+        tags VARCHAR[],                 -- TAGS (denormalized iconographic labels)
+        tags_embedding FLOAT[128],      -- TAGS_EMBEDDED
+        ocr_engine VARCHAR,
         language_tag VARCHAR DEFAULT 'en-US',
-        raw_ocr_output VARCHAR NOT NULL,
-        normalized_text VARCHAR NOT NULL,
         word_count INTEGER DEFAULT 0,
         confidence_avg DOUBLE DEFAULT 0.95,
-        tokens_json VARCHAR
+        tokens_json VARCHAR,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
     -- 2. Taxonomy & Dictionary Tables
@@ -220,6 +229,11 @@ def init_duckdb_schema():
         billing_cycle VARCHAR DEFAULT 'monthly',
         amount_inr DOUBLE DEFAULT 0.0,
         payment_due_amount DOUBLE DEFAULT 0.0,
+        id_proof_url VARCHAR,
+        verification_status VARCHAR DEFAULT 'approved',
+        institution_name VARCHAR,
+        verified_by VARCHAR,
+        verified_at TIMESTAMP,
         last_payment_date TIMESTAMP,
         next_billing_date TIMESTAMP,
         payment_method VARCHAR DEFAULT 'gpay',
@@ -249,16 +263,6 @@ def init_duckdb_schema():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE TABLE IF NOT EXISTS content_access_rules (
-        id VARCHAR PRIMARY KEY,
-        study_id VARCHAR REFERENCES studies(id),
-        required_tier VARCHAR DEFAULT 'free',
-        allow_preview BOOLEAN DEFAULT TRUE,
-        allow_high_res_download BOOLEAN DEFAULT FALSE,
-        is_blocked BOOLEAN DEFAULT FALSE,
-        block_reason VARCHAR
-    );
-
     -- T_SYST_PARAM_CONFIG: Externalized Application Configuration
     CREATE TABLE IF NOT EXISTS param_config (
         id VARCHAR PRIMARY KEY,
@@ -274,23 +278,57 @@ def init_duckdb_schema():
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(param_group, param_key)
     );
+
+    -- T_ODS_DOC_CATALOG: Primary shastric source-text reference catalog
+    CREATE TABLE IF NOT EXISTS doc_ref_catalog (
+        doc_ref VARCHAR PRIMARY KEY,
+        doc_name VARCHAR NOT NULL,
+        corpus VARCHAR,
+        section VARCHAR,
+        author_or_tradition VARCHAR,
+        language VARCHAR,
+        applicability_to_iconography VARCHAR,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_by VARCHAR DEFAULT 'curator',
+        updated_by VARCHAR DEFAULT 'curator'
+    );
+
+    -- T_SYST_AUDIT_LOG: Immutable mutation trail for all curatorial CRUD
+    CREATE TABLE IF NOT EXISTS audit_logs (
+        id VARCHAR PRIMARY KEY,
+        table_name VARCHAR NOT NULL,
+        record_id VARCHAR NOT NULL,
+        action VARCHAR NOT NULL,
+        user_email VARCHAR NOT NULL,
+        user_role VARCHAR NOT NULL,
+        changed_fields_json VARCHAR,
+        previous_state_json VARCHAR,
+        new_state_json VARCHAR,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
     """)
 
     # Ensure users and phase 2 tables exist in pre-existing DB
     ensure_users_table(conn)
     ensure_phase2_tables(conn)
-    ensure_secondary_study(conn)
     ensure_vector_columns(conn)
     ensure_slide_public_column(conn)
-    ensure_canonical_ganesa_study(conn)
+    ensure_plate_study_columns(conn)
 
-    # Check if series is seeded
+    # Check if series is seeded (reference data: series + taxonomy)
     res = conn.execute("SELECT COUNT(*) FROM series;").fetchone()
     if res and res[0] == 0:
         seed_duckdb_archive(conn)
 
     # Ensure expanded aliases for Indic phonetic search (e.g. Mooshika -> Musika)
     ensure_expanded_aliases(conn)
+
+    # Seed the curated test studies (Primer + God is in the Details) once reference data exists
+    ensure_seed_test_studies(conn)
+
+    # Seed the primary shastric source-text reference catalog once
+    ensure_seed_doc_ref_catalog(conn)
 
     # Seed param_config if empty
     seed_param_config(conn)
@@ -303,6 +341,40 @@ def init_duckdb_schema():
         pass
 
     conn.close()
+
+def ensure_seed_doc_ref_catalog(conn):
+    """Idempotently seed the 5 canonical shastric source texts (T_ODS_DOC_CATALOG)."""
+    try:
+        res = conn.execute("SELECT COUNT(*) FROM doc_ref_catalog;").fetchone()
+    except Exception:
+        return
+    if res and res[0] > 0:
+        return
+    rows = [
+        ("DOC_REF_001", "Mānasāra Śilpa Śāstra", "Agama & Vastu Shastra Corpus",
+         "Chapter 51-56: Tālamāna & Pratima Lakshana", "Maharshi Mānasāra", "Sanskrit (IAST)",
+         "Foundational text for iconometric proportions (Navatala, Dasatala) and divine bronze casting."),
+        ("DOC_REF_002", "Śilparatna", "South Indian Silpa Corpus",
+         "Part II: Iconography of Devas & Devis", "Śrīkumāra of Kerala (16th C CE)", "Sanskrit",
+         "Detailed treatises on mudras, ayudhas, postures, and Panchaloha alloy mixing formulas."),
+        ("DOC_REF_003", "Kāraṇāgama", "Saiva Agamic Corpus",
+         "Kriya Pada: Murti Laksana", "Saiva Siddhanta Tradition", "Sanskrit (Grantha Script)",
+         "Prescribes ritual dimensions, postures, and iconographic marks for Siva, Ganesha, and Skanda."),
+        ("DOC_REF_004", "Mayamata", "Vastu & Silpa Shastra Corpus",
+         "Chapters 34-36: Sculptural Proportions", "Mayamuni", "Sanskrit",
+         "Comprehensive manual on architectural sculpture, bronze casting, and iconographic symmetry."),
+        ("DOC_REF_005", "Elements of Hindu Iconography", "Modern Epigraphical Corpus",
+         "Volumes I & II", "T.A. Gopinatha Rao (1914)", "English / Sanskrit Citations",
+         "Pioneering academic baseline reference cross-referencing Agamic texts with Chola/Pallava bronzes."),
+    ]
+    for r in rows:
+        conn.execute(
+            "INSERT INTO doc_ref_catalog "
+            "(doc_ref, doc_name, corpus, section, author_or_tradition, language, applicability_to_iconography) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            r,
+        )
+
 
 def ensure_users_table(conn):
     """
@@ -352,6 +424,44 @@ def ensure_slide_public_column(conn):
             conn.rollback()
         except Exception:
             pass
+
+def ensure_plate_study_columns(conn):
+    """Idempotently adds the lean plate/study columns to pre-existing DBs (existence-checked)."""
+    plate_cols = [
+        ("tags", "VARCHAR[]"),
+        ("tags_embedding", "FLOAT[128]"),
+        ("ocr_engine", "VARCHAR"),
+        ("language_tag", "VARCHAR DEFAULT 'en-US'"),
+        ("word_count", "INTEGER DEFAULT 0"),
+        ("confidence_avg", "DOUBLE DEFAULT 0.95"),
+        ("tokens_json", "VARCHAR"),
+        ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+        ("updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+    ]
+    study_cols = [
+        ("required_tier", "VARCHAR DEFAULT 'free'"),
+        ("is_blocked", "BOOLEAN DEFAULT FALSE"),
+        ("block_reason", "VARCHAR"),
+        ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+        ("updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+    ]
+    series_cols = [
+        ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+        ("updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+    ]
+    for table, cols in (("study_slides", plate_cols), ("studies", study_cols), ("series", series_cols)):
+        try:
+            existing = [r[1] for r in conn.execute(f"PRAGMA table_info('{table}')").fetchall()]
+            for name, decl in cols:
+                if name not in existing:
+                    try:
+                        conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl};")
+                    except Exception:
+                        try: conn.rollback()
+                        except Exception: pass
+        except Exception:
+            try: conn.rollback()
+            except Exception: pass
 
 def ensure_secondary_study(conn):
     """
@@ -429,16 +539,6 @@ def ensure_phase2_tables(conn):
         ip_address VARCHAR,
         user_agent VARCHAR,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS content_access_rules (
-        id VARCHAR PRIMARY KEY,
-        study_id VARCHAR,
-        required_tier VARCHAR DEFAULT 'free',
-        allow_preview BOOLEAN DEFAULT TRUE,
-        allow_high_res_download BOOLEAN DEFAULT FALSE,
-        is_blocked BOOLEAN DEFAULT FALSE,
-        block_reason VARCHAR
     );
     """)
 
@@ -630,7 +730,7 @@ def seed_duckdb_archive(conn):
     """
     # 1. 19 Series
     conn.execute("""
-    INSERT INTO series VALUES
+    INSERT INTO series (id, slug, name, scope, status, cover_image_url, sort_order) VALUES
     (1, 'panchaloha-primer', 'Panchaloha Primer', 'An introduction to the Panchaloha bronze art form.', 'completed', NULL, 1),
     (2, 'dictionary-of-iconography', 'Dictionary of Iconography', 'Glossary of terms related to iconography.', 'completed', NULL, 2),
     (3, 'tala', 'Tala', 'Series on iconometry and proportional systems.', 'completed', NULL, 3),
@@ -684,7 +784,7 @@ def seed_duckdb_archive(conn):
 
     # 5. Taxonomy Terms
     conn.execute("""
-    INSERT INTO taxonomy_terms VALUES
+    INSERT INTO taxonomy_terms (id, taxonomy_type_id, parent_id, canonical_name, iast_name, slug, description, dictionary_entry_id, place_id, period_id, is_active, display_order) VALUES
     -- Divinities
     ('t_ganesha', 1, NULL, 'Ganesha', 'Gaṇeśa', 'ganesha', 'Lord of beginnings with elephant head', NULL, NULL, NULL, TRUE, 1),
     ('t_siva', 1, NULL, 'Siva', 'Śiva', 'siva', 'Supreme Saiva deity', NULL, NULL, NULL, TRUE, 2),
@@ -755,6 +855,11 @@ def seed_duckdb_archive(conn):
     ('a22', 't_daksinavarta', 'Right turning trunk', 'english_translation', TRUE);
     """)
 
+    # Reference data (series + taxonomy) seeded. Curated studies are seeded by
+    # ensure_seed_test_studies() so a fresh DB starts with the Primer + God-is studies.
+    return
+
+    # (legacy Ganesa demo seed below is intentionally unreachable)
     # 7. Study 001: Ganesa Variations Carousel (Linked to Physical Storage URIs)
     conn.execute("""
     INSERT INTO studies VALUES (
@@ -810,11 +915,118 @@ def seed_duckdb_archive(conn):
     """)
 
 
+def ensure_seed_test_studies(conn):
+    """
+    Seeds two curated test studies on a fresh DB (idempotent):
+      - Panchaloha Primer (series 1): 4 plates, mixed public/non-public (public gate UX)
+      - God is in the Details (series 9): 5 plates (collections + recent-uploads carousel)
+    Images are expected under /storage/images/panchaloha-primer/plate_N.jpeg and
+    /storage/images/god-is-in-the-details/gid_N.jpeg (placed by the build step).
+    """
+    try:
+        exists = conn.execute("SELECT COUNT(*) FROM studies WHERE id = 's_primer_001';").fetchone()
+        if exists and exists[0] > 0:
+            return
+    except Exception:
+        return
+
+    try:
+        from embedding_service import text_to_dense_vector
+    except Exception:
+        def text_to_dense_vector(_t, dim=128):
+            return [0.0] * dim
+
+    def _study(sid, slug, title, subtitle, series_id, summary, cover, total, keywords):
+        emb = text_to_dense_vector(f"{title} {subtitle} {summary} {keywords}")
+        conn.execute(
+            """INSERT INTO studies
+               (id, slug, title, subtitle, study_number, series_id, content_type, access_level,
+                status, summary_markdown, cover_image_url, total_slides, search_keywords,
+                curator_notes, required_tier, is_blocked, block_reason, embedding)
+               VALUES (?, ?, ?, ?, 'Study 001', ?, 'study', 'public', 'published', ?, ?, ?, ?,
+                       'Curated dev seed', 'free', FALSE, NULL, ?)""",
+            (sid, slug, title, subtitle, series_id, summary, cover, total, keywords, emb),
+        )
+
+    def _plate(pid, sid, num, title, img, caption, ocr, cleaned, vis, is_public, tags):
+        emb = text_to_dense_vector(cleaned or title)
+        temb = text_to_dense_vector(" ".join(tags) if tags else title)
+        conn.execute(
+            """INSERT INTO study_slides
+               (id, study_id, slide_number, slide_title, image_url, thumbnail_url, caption,
+                extracted_ocr_text, cleaned_text, visual_elements_summary, sort_order,
+                is_public, tags, tags_embedding, ocr_engine, word_count, confidence_avg, embedding)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'seed', ?, 0.95, ?)""",
+            (pid, sid, num, title, img, img, caption, ocr, cleaned, vis, num,
+             bool(is_public), tags, temb, len((cleaned or "").split()), emb),
+        )
+
+    # --- Study 1: Panchaloha Primer (mixed public/non-public) ---
+    _study(
+        's_primer_001', 'panchaloha-primer-fundamentals',
+        'Panchaloha Primer: Sacred Bronze Fundamentals',
+        'An introductory walkthrough of the Panchaloha five-metal bronze tradition',
+        1,
+        'Foundational primer on Panchaloha sacred bronzes: the five-metal alloy, lost-wax casting, iconometric canons, and how to read a bronze icon. Front matter is public; later study plates are member-only.',
+        '/storage/images/panchaloha-primer/plate_1.jpeg', 4,
+        'Panchaloha, bronze, primer, iconography, lost wax, five metals, introduction',
+    )
+    primer_plates = [
+        (1, 'Primer: Title & Scope', 'Introduction to the Panchaloha primer series and its scope.', True,
+         ['panchaloha', 'introduction', 'bronze']),
+        (2, 'The Five Metals (Pancha-loha)', 'Gold, silver, copper, tin and iron: the sacred five-metal alloy.', True,
+         ['panchaloha', 'five metals', 'alloy']),
+        (3, 'Lost-Wax Casting (Madhuchhishta Vidhana)', 'The madhuchhishta vidhana lost-wax casting process.', False,
+         ['lost wax', 'casting', 'technique']),
+        (4, 'Reading Iconometry (Tala Measures)', 'Introduction to tala proportional measurement of icons.', False,
+         ['iconometry', 'tala', 'proportion']),
+    ]
+    for num, title, caption, pub, tags in primer_plates:
+        img = f"/storage/images/panchaloha-primer/plate_{num}.jpeg"
+        ocr = f"PANCHALOHA PRIMER {title.upper()} FIVE METAL MASONRY fivemetalmasonry.com"
+        cleaned = f"{title}. {caption} Part of the Panchaloha Primer fundamentals study."
+        _plate(f"pl_primer_{num}", 's_primer_001', num, title, img, caption, ocr, cleaned,
+               f"Primer plate {num}.", pub, tags)
+
+    # --- Study 2: God is in the Details (collections + carousel) ---
+    _study(
+        's_god_details_001', 'god-is-in-the-details-bronzes',
+        'God is in the Details: Museum & Temple Bronzes',
+        'Close iconographic readings of museum and temple bronze masterpieces',
+        9,
+        'A detailed visual study of museum and temple bronzes, reading fine iconographic details—mudras, ayudhas, ornamentation and posture—across celebrated Chola and later bronzes.',
+        '/storage/images/god-is-in-the-details/gid_1.jpeg', 5,
+        'bronze, museum, temple, Chola, iconography, details, mudra, ayudha, ornament',
+    )
+    god_plates = [
+        (1, 'Detail Study: Facial Modelling', ['bronze', 'face', 'detail']),
+        (2, 'Detail Study: Hasta & Mudra', ['mudra', 'hasta', 'gesture']),
+        (3, 'Detail Study: Ayudha & Attributes', ['ayudha', 'attribute', 'weapon']),
+        (4, 'Detail Study: Abharana & Ornamentation', ['abharana', 'ornament', 'jewellery']),
+        (5, 'Detail Study: Posture & Stance', ['asana', 'posture', 'stance']),
+    ]
+    for num, title, tags in god_plates:
+        img = f"/storage/images/god-is-in-the-details/gid_{num}.jpeg"
+        caption = f"{title} on a museum/temple bronze."
+        ocr = f"GOD IS IN THE DETAILS {title.upper()} FIVE METAL MASONRY fivemetalmasonry.com"
+        cleaned = f"{title}. Close reading of this detail across museum and temple bronzes."
+        _plate(f"pl_god_{num}", 's_god_details_001', num, title, img, caption, ocr, cleaned,
+               f"Detail plate {num}.", True, tags)
+
+    try:
+        conn.commit()
+    except Exception:
+        pass
+
+
 def ensure_canonical_ganesa_study(conn):
     """
-    Ensures that the canonical Ganesa study s_ganesa_001 and its 4 curated slides
-    with 128-d dense vector embeddings are always present in the archive.
+    Deprecated: the Ganesa demo study was removed in the schema refactor.
+    Curated studies are now seeded by ensure_seed_test_studies(). Kept as a no-op
+    so any stale import/call is harmless (it no longer references dropped tables).
     """
+    return
+
     has_slides = conn.execute("SELECT COUNT(*) FROM study_slides WHERE study_id = 's_ganesa_001';").fetchone()
     if has_slides and has_slides[0] >= 4:
         return

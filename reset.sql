@@ -46,9 +46,6 @@ DELETE FROM premium_download_requests;
 -- 1.4 Purge Real-Time Telemetry & Search Behavior Stream (T_SYST_BEHAVIOR_LOG)
 DELETE FROM user_behavior_logs;
 
--- 1.5 Purge Curatorial Audit Ledger (T_SYST_AUDIT_LOG)
-DELETE FROM audit_logs;
-
 -- 1.6 Purge User Accounts & Session Profiles (T_SYST_USERS)
 -- Note: All child records in user_downloads and user_subscriptions are purged above.
 -- If you wish to preserve the primary system administrator, replace with:
@@ -57,19 +54,16 @@ DELETE FROM users;
 
 
 -- =============================================================================
--- 2. 🟤 BRONZE LAYER: Raw Machine OCR Runs & Ingestion Proposals
+-- 2. BRONZE LAYER: AI Ingestion Proposals & Ingested Plates
 -- =============================================================================
-
--- 2.1 Purge Raw Machine OCR Outputs & Token Bounding Boxes (T_RAW_SLIDE_OCR)
--- References: study_slides(id)
-DELETE FROM slide_ocr_data;
+-- Note: slide_ocr_data and content_access_rules were removed in the schema
+-- refactor (OCR fields + access tier now live on study_slides / studies).
 
 -- 2.2 Purge Autonomous AI Metadata & Taxonomy Proposals (T_RAW_AI_PROPOSALS)
 -- References: study_slides(id)
 DELETE FROM ai_metadata_proposals;
 
--- 2.3 Purge Ingested Test Study Slides (T_RAW_STUDY_SLIDES)
--- (Curated master slides can be re-seeded from dml.sql if needed)
+-- 2.3 Purge Ingested Test Study Slides / Plates (T_RAW_STUDY_SLIDES)
 DELETE FROM study_slides;
 
 

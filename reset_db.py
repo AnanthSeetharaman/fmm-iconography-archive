@@ -43,24 +43,25 @@ def main():
         sys.exit(1)
         
     print("[*] Executing reset script...")
-    # Execute statements
+    # Cleanse operational/raw rows (reference data preserved). Resilient to tables
+    # that may not exist (schema refactor dropped slide_ocr_data / content_access_rules).
     statements = [
         "DELETE FROM user_downloads",
         "DELETE FROM user_subscriptions",
         "DELETE FROM premium_download_requests",
         "DELETE FROM user_behavior_logs",
-        "DELETE FROM audit_logs",
         "DELETE FROM users",
-        "DELETE FROM slide_ocr_data",
         "DELETE FROM ai_metadata_proposals",
         "DELETE FROM study_slides"
     ]
-    
-    conn.execute("BEGIN TRANSACTION;")
+
+    # Autocommit each statement; a missing table must not abort the rest.
     for stmt in statements:
         print(f"    -> {stmt}...")
-        conn.execute(stmt + ";")
-    conn.execute("COMMIT;")
+        try:
+            conn.execute(stmt + ";")
+        except Exception as e:
+            print(f"       (skipped: {e})")
     
     print("
 [+] Database reset completed successfully!")
